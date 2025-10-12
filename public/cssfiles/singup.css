@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=BBH+Sans+Hegarty&family=Comforter&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barrio&display=swap');
+
+
+
+* {
+    margin: 0px;
+    padding: 0px;
+}
+
+body {
+    background-color: black;
+    /* display: flex; */
+    /* justify-content: center; */
+}
+
+.heding {
+    padding: 5px;
+    margin: 10px;
+    text-align: center;
+    /* background-color: rgba(49, 48, 47, 0); */
+    color: aqua;
+    z-index: 10;
+}
+
+.heding h1 {
+    font-family: "BBH Sans Hegarty", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    text-shadow: 0px 10px 30px rgb(255, 255, 255);
+}
+
+.contanair {
+    background-color: rgba(72, 77, 82, 0);
+    height: 70vh;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.box {
+    background-color: rgba(82, 81, 83, 0.842);
+    height: 90%;
+    width: 40%;
+    border-radius: 30px;
+}
+
+.form-group {
+    /* border: 1px solid white; */
+    margin: 25px;
+}
+
+.wrinput {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 50px;
+    padding: 10px;
+    /* border: 2px solid rgb(11, 223, 74); */
+}
+
+
+.wrapper label {
+    font-family: "Barrio", system-ui;
+    font-weight: 400;
+    font-style: normal;
+    font-size: x-large;
+    text-shadow: 0px 0px 10px #daa30d
+}
+
+.wrapper {
+    /* border: 2px solid red; */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* font-size: x-large; */
+}
+
+.buttongruop {
+    display: flex;
+    padding: 10px;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0e63be;
+    box-shadow: 0px 10px 20px #000000;
+}
+
+input {
+    width: 60%;
+    height: 100%;
+    padding: 8px;
+    border: 1px solid #000000;
+    border-radius: 20px;
+    box-sizing: border-box;
+}
