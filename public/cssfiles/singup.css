@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=BBH+Sans+Hegarty&family=Comforter&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Barrio&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 
 
@@ -106,4 +107,38 @@ input {
     border: 1px solid #000000;
     border-radius: 20px;
     box-sizing: border-box;
+}
+
+.error {
+    height: 10vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.message {
+    background-color: aliceblue;
+    height: 70%;
+    width: 40%;
+    border-radius: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 3px;
+    /* margin: 10px; */
+    overflow: hidden;
+}
+
+.mbox {
+    /* border: 1px solid black; */
+    height: 100%;
+    width: 90%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #b10f0fe5;
+    font-family: "Inter", sans-serif;
+    font-optical-sizing: auto;
+    font-style: normal;;
+    font-size: larger;
 }

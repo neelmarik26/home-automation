@@ -21,6 +21,10 @@ app.get('/', (req, res) => {
   res.render('singuppage.ejs')
 });
 
+app.get('/mainpage',(req,res)=>{
+  res.render('mainpage.ejs')
+});
+
 app.post('/newuser', async (req, res) => {
   try{
     console.log('📨 Received signup request:', req.body);
@@ -40,16 +44,16 @@ app.post('/newuser', async (req, res) => {
     });
     await newuser.save();
     console.log('✅ User saved successfully:')
-    res.json({ reply: "Hello Client!", received: req.body });
+    res.json({ reply: "welcome!", received: req.body });
   }catch(error){
     if(error.code==11000){
       console.log("user is alredy register")
-      res.json("user is alredy register")
+      res.json({ e:'error occer' , message:"user is alredy register"})
     }
     if(error.name === 'ValidationError'){
     const firstError = Object.values(error.errors)[0];
     console.log(firstError.message)
-    res.json(firstError.message)
+    res.json({e:"error occer",message:firstError.message})
     }
   }
 });
