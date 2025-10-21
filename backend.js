@@ -21,7 +21,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.use(express.json());
 
-app.get('/singup', (req, res) => {
+app.get('/', (req, res) => {
   res.render('singuppage.ejs')
 });
 
@@ -92,13 +92,11 @@ app.get("/esp", (req, res) => {
   });
 });
 
-app.get("/", (req, res) => {
-  res.json({ message: "Server is running!" });
-});
+
 
 // starting the server
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
-  console.log('Signup endpoint: POST http://localhost:3000/singup');
+  console.log('Signup endpoint: POST http://localhost:3000/');
 })
