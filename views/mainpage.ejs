@@ -1,18 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>main page</title>
     <link rel="stylesheet" href="cssfiles/mainpage.css">
 </head>
+
 <body>
-    <nav>
-        <div class="mainheding">
-            <h1> I.O.T HOME AUTOMATION </h1>
+    <div class="mainheding">
+        <h1> I.O.T HOME AUTOMATION </h1>
+        <nav class="navbar">
+            <button class="btn">admin</button>
+            <button class="btn">about us</button>
+        </nav>
+    </div>
+    <div class="mainbox">
+        <div class="card">
+            <div class="wrapper"><h4>light_1</h4></div>
+            <div class="wrapper"><div><img class="cardimg" height="100px" width="100px" src="assits/IMG_20250819_084553.jpg" alt="pic"></div></div>
+            <div class="wrapper"><button class="stylish-btn" id="buttonid1" >off</button></div>
         </div>
-        
-    </nav>
+        <div class="card">
+            <div class="wrapper"><h4>light_1</h4></div>
+            <div class="wrapper"><div><img class="cardimg" height="100px" width="100px" src="assits/IMG_20250819_084553.jpg" alt="pic"></div></div>
+            <div class="wrapper"><button class="stylish-btn" id="buttonid2" >off</button></div>
+        </div>
+    </div>
     <script src="javascriptfiles/mainpage.js"></script>
 </body>
+
 </html>
