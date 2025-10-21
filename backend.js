@@ -11,7 +11,7 @@ let btn2sts = 0;
 
 // connect to mongo db data base with user info
 
-mongoose.connect("mongodb://localhost:27017/userinfo")
+mongoose.connect("mongodb+srv://neelmarik26_db_user:2hcODrH1Ratq8b0K@iothomeautomation.nayri10.mongodb.net/?retryWrites=true&w=majority&appName=IotHomeAutomation")
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.log('MongoDB connection error:', err));
 
