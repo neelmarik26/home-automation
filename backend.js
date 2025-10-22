@@ -22,9 +22,12 @@ app.set('view engine', 'ejs');
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.render('singuppage.ejs')
+  res.render('login.ejs')
 });
 
+app.get("/singuppage",(req,res)=>{
+  res.render('singuppage.ejs')
+})
 app.get('/mainpage', (req, res) => {
   res.render('mainpage.ejs')
 });
@@ -52,6 +55,30 @@ app.post('/mainpagedata', async (req, res) => {
   res.json({ reply: "working on your request", received: req.body });
 })
 
+app.post('/olduser', async(req,res)=>{
+  console.log('get request for login');
+  const{email,password}=req.body;
+  console.log( 'email:'+email)
+  console.log("password:"+password)
+  const olduser = await user.findOne({ email:email });
+  if(olduser==null){
+    console.log('no user found')
+    res.json( {reply : "no user found"})
+  }else{
+    console.log('user found')
+    console.log(olduser)
+    if(olduser.password==password){
+      console.log('all ok login successfull');
+      res.json({reply:'user found',pass:'match'})
+    }
+    else{
+      console.log('password not match pls enter right password');
+      res.json({reply:'user found',pass:'notmatch'})
+    }
+  }
+  // const olduser = await user.findOne({ email:email });
+  // console.log(olduser);
+})
 app.post('/newuser', async (req, res) => {
   try {
     console.log('📨 Received signup request:', req.body);
