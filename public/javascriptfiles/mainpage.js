@@ -1,3 +1,10 @@
+window.addEventListener('DOMContentLoaded', function() {
+ const token =window.localStorage.getItem('token');
+ if(!token){
+    window.location.href = '/';
+ }
+})
+
 document.getElementById('buttonid1').addEventListener("click" ,()=>{
      const button1=document.getElementById('buttonid1')
      let status=0;
@@ -35,3 +42,7 @@ async function senddatatobackend(data){
     const result = await response.json();
     console.log('Server replied:', result);
 }
+document.getElementById('logout').addEventListener("click",()=>{
+   window.localStorage.removeItem('token');
+   window.location.href = '/';
+})

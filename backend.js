@@ -1,4 +1,5 @@
 const express = require('express')
+require('dotenv').config();
 const mongoose = require("mongoose");
 const cors = require('cors');
 const path = require('path');
@@ -21,12 +22,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.render('login.ejs')
-});
 
-app.get("/singuppage",(req,res)=>{
+
+app.get("/supage",(req,res)=>{
+try{
   res.render('singuppage.ejs')
+}catch(err){
+  console.log('errrr',err)
+}
 })
 app.get('/mainpage', (req, res) => {
   res.render('mainpage.ejs')
@@ -69,7 +72,7 @@ app.post('/olduser', async(req,res)=>{
     console.log(olduser)
     if(olduser.password==password){
       console.log('all ok login successfull');
-      res.json({reply:'user found',pass:'match'})
+      res.json({reply:'user found',pass:'match',token:process.env.token})
     }
     else{
       console.log('password not match pls enter right password');
@@ -119,7 +122,9 @@ app.get("/esp", (req, res) => {
   });
 });
 
-
+app.get('/', (req, res) => {
+  res.render('login.ejs')
+});
 
 // starting the server
 const port = process.env.PORT || 3000;

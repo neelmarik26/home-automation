@@ -1,18 +1,29 @@
 console.log("pggram run success fullyghm")
-
-const signupBtn = document.getElementById("singupbtn");
-if (signupBtn) {
-    signupBtn.addEventListener("click", () => {
+window.addEventListener('DOMContentLoaded', function() {
+    const token = window.localStorage.getItem('token');
+    const currentPath = window.location.pathname;
+    
+    if (!token && currentPath !== '/') {
+        // No token and not already on home page - redirect to login
+        window.location.href = '/';
+    } else if (token && currentPath === '/') {
+        // Has token and is on home page - redirect to main page
+        window.location.href = '/mainpage';
+    }
+    // Otherwise, stay on current page
+});
+document.getElementById("singupbtn").addEventListener("click", (event) => {
+        event.preventDefault();
         callsinguppage();
     });
-} 
-else {
-    console.error("Signup button not found!");
+function callsinguppage() {
+    
+    window.location.href = '/supage';
+   
 }
-async function callsinguppage() {
-    window.location.href = '/singuppage';
-}
-async function callmainpage(){
+async function callmainpage(token){
+  
+    window.localStorage.setItem("token",token)
     window.location.href = '/mainpage';
 }
 document.querySelector('.btn').addEventListener('click', () => {
@@ -31,7 +42,7 @@ async function senddata(data) {
         if(result.pass=="match"){
             document.querySelector('.messagebox').innerHTML=`<div> welcome back </div>`
             setTimeout(()=>{
-            callmainpage();
+            callmainpage(result.token);
             },1500)
         }
         else if(result.reply=="no user found"){
