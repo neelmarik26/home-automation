@@ -1,8 +1,8 @@
-console.log("pggram run success fullyghm")
+console.log("pggram run success fully")
+
 window.addEventListener('DOMContentLoaded', function() {
     const token = window.localStorage.getItem('token');
     const currentPath = window.location.pathname;
-    
     if (!token && currentPath !== '/') {
         // No token and not already on home page - redirect to login
         window.location.href = '/';
@@ -12,17 +12,17 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     // Otherwise, stay on current page
 });
+
 document.getElementById("singupbtn").addEventListener("click", (event) => {
         event.preventDefault();
         callsinguppage();
     });
+
 function callsinguppage() {
-    
     window.location.href = '/supage';
-   
 }
+
 async function callmainpage(token){
-  
     window.localStorage.setItem("token",token)
     window.location.href = '/mainpage';
 }

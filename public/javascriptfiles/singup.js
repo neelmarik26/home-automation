@@ -1,3 +1,5 @@
+console.log("pggram run success fully")
+
 document.querySelector(".sub").addEventListener("click", (e) => {
     e.preventDefault();
 
@@ -62,3 +64,12 @@ async function senddata(data) {
 async function callmainpage(){
     window.location.href = '/mainpage';
 }
+document.querySelector(".re").addEventListener('click',()=>{
+    const emailInput = document.getElementById("email");
+    emailInput.value = "";
+    const passInput = document.getElementById("password");
+    passInput.value = "";
+    const nameinput = document.getElementById("name");
+    nameinput.value = "";
+    
+})

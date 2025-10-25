@@ -1,4 +1,4 @@
-// const { json } = require("express");
+console.log("pggram run success fully")
 
 window.addEventListener('DOMContentLoaded', function () {
    const token = window.localStorage.getItem('token');
@@ -68,3 +68,10 @@ async function verifytoken() {
    console.log('Server replied:', result.message);
    return result.message 
 }
+// admin page for only valid user 
+document.querySelector("#adminbtn").addEventListener('click',()=>{
+   alert("this feture comming soon")
+})
+document.querySelector("#about_us").addEventListener('click',()=>{
+   alert("this feture comming soon")
+})
