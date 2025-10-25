@@ -1,325 +1,384 @@
+/* cssfiles/login.css */
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: #ffffff;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
     overflow: hidden;
+    padding: 1rem;
 }
 
 .container {
-    position: relative;
     width: 100%;
-    max-width: 450px;
-    padding: 40px;
-    z-index: 1;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.messagebox {
+    background: rgba(0, 255, 170, 0.1);
+    border: 1px solid rgba(0, 255, 170, 0.3);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    animation: slideDown 0.6s ease-out;
+}
+
+.messagebox div {
+    color: #00ffaa;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+    word-wrap: break-word;
 }
 
 .login-box {
-    background: rgba(15, 15, 35, 0.7);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 50px 40px;
-    box-shadow: 0 15px 25px rgba(0, 0, 0, 0.5);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    position: relative;
+    border-radius: 16px;
+    padding: 2rem 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-height: 90vh;
     overflow: hidden;
 }
 
-.login-box::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(0deg,
-            transparent,
-            transparent,
-            #45f3ff,
-            #45f3ff,
-            #45f3ff);
-    transform-origin: bottom right;
-    animation: animate 6s linear infinite;
-    z-index: -1;
-}
-
-.login-box::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(0deg,
-            transparent,
-            transparent,
-            #ff2770,
-            #ff2770,
-            #ff2770);
-    transform-origin: bottom right;
-    animation: animate 6s linear infinite;
-    animation-delay: -3s;
-    z-index: -1;
-}
-
-@keyframes animate {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
-.messagebox{
-    background-color: rgba(255, 0, 0, 0);
-    height: 60px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: x-large;
-    color: #ff2770;
-    font-weight: 600;
-}
-h2 {
-    color: #fff;
+.login-box h2 {
     text-align: center;
-    margin-bottom: 30px;
-    font-weight: 600;
-    letter-spacing: 1px;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+    background: linear-gradient(90deg, #00ffff, #00ffaa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
 }
 
 .input-box {
     position: relative;
-    margin-bottom: 30px;
+    margin-bottom: 1.5rem;
 }
 
 .input-box input {
     width: 100%;
-    padding: 15px 20px;
-    background: transparent;
-    border: none;
-    outline: none;
-    border-radius: 10px;
-    font-size: 16px;
-    color: #fff;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: 0.5s;
-}
-
-.input-box input:focus {
-    border-color: #45f3ff;
-    box-shadow: 0 0 10px #45f3ff;
+    border-radius: 10px;
+    color: #ffffff;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    outline: none;
 }
 
 .input-box label {
     position: absolute;
     top: 50%;
-    left: 20px;
+    left: 1rem;
     transform: translateY(-50%);
     color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
     pointer-events: none;
-    transition: 0.5s;
+    transition: all 0.3s ease;
+    background: transparent;
+    padding: 0 0.5rem;
 }
 
-.input-box input:focus~label,
-.input-box input:valid~label {
+.input-box input:focus ~ label,
+.input-box input:valid ~ label {
     top: 0;
-    left: 20px;
-    font-size: 14px;
-    background: #0f0c29;
-    padding: 0 10px;
-    color: #45f3ff;
+    font-size: 0.8rem;
+    color: #00ffff;
+    background: rgba(15, 32, 39, 0.9);
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.input-box input:focus {
+    border: 1px solid #00ffff;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .remember-forgot {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 20px;
-    font-size: 14px;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .remember-forgot label {
-    color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.remember-forgot input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #00ffff;
 }
 
 .remember-forgot a {
-    color: #45f3ff;
+    color: #00ffff;
     text-decoration: none;
-    transition: 0.3s;
+    transition: all 0.3s ease;
+    white-space: nowrap;
 }
 
 .remember-forgot a:hover {
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
     text-decoration: underline;
 }
 
 .btn {
     width: 100%;
-    padding: 15px;
-    background: linear-gradient(45deg, #45f3ff, #ff2770);
+    padding: 1rem;
+    background: linear-gradient(135deg, #00ffff, #00ffaa);
     border: none;
-    border-radius: 10px;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 600;
+    border-radius: 50px;
+    color: #0f2027;
+    font-size: 1rem;
+    font-weight: bold;
     cursor: pointer;
-    transition: 0.3s;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+    margin-bottom: 1rem;
 }
 
 .btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 255, 255, 0.5);
+}
+
+.btn:active {
+    transform: translateY(0);
 }
 
 .register-link {
     text-align: center;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 14px;
+    margin-top: 1rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
 }
 
-.register-link a {
-    color: #45f3ff;
-    text-decoration: none;
-    font-weight: 600;
-    transition: 0.3s;
-}
-
-.register-link a:hover {
-    text-decoration: underline;
-}
-
-.floating-elements {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    z-index: 0;
-}
-
-.floating-elements div {
-    position: absolute;
-    display: block;
-    width: 20px;
-    height: 20px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-    animation: float 15s linear infinite;
-    bottom: -150px;
-}
-
-.floating-elements div:nth-child(1) {
-    left: 25%;
-    width: 80px;
-    height: 80px;
-    animation-delay: 0s;
-}
-
-.floating-elements div:nth-child(2) {
-    left: 10%;
-    width: 20px;
-    height: 20px;
-    animation-delay: 2s;
-    animation-duration: 12s;
-}
-
-.floating-elements div:nth-child(3) {
-    left: 70%;
-    width: 20px;
-    height: 20px;
-    animation-delay: 4s;
-}
-
-.floating-elements div:nth-child(4) {
-    left: 40%;
-    width: 60px;
-    height: 60px;
-    animation-delay: 0s;
-    animation-duration: 18s;
-}
-
-.floating-elements div:nth-child(5) {
-    left: 65%;
-    width: 20px;
-    height: 20px;
-    animation-delay: 0s;
-}
-
-.floating-elements div:nth-child(6) {
-    left: 75%;
-    width: 110px;
-    height: 110px;
-    animation-delay: 3s;
-}
-
-.floating-elements div:nth-child(7) {
-    left: 35%;
-    width: 150px;
-    height: 150px;
-    animation-delay: 7s;
-}
-
-.floating-elements div:nth-child(8) {
-    left: 50%;
-    width: 25px;
-    height: 25px;
-    animation-delay: 15s;
-    animation-duration: 45s;
-}
-
-.floating-elements div:nth-child(9) {
-    left: 20%;
-    width: 15px;
-    height: 15px;
-    animation-delay: 2s;
-    animation-duration: 35s;
-}
-
-.floating-elements div:nth-child(10) {
-    left: 85%;
-    width: 150px;
-    height: 150px;
-    animation-delay: 0s;
-    animation-duration: 11s;
-}
-#singupbtn{
-    background-color: rgba(0, 0, 0, 0);
-    color: rgb(72, 72, 255);
+#singupbtn {
+    background: transparent;
     border: none;
-    
-
+    color: #00ffaa;
+    font-size: 0.9rem;
+    text-decoration: underline;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0.2rem 0.5rem;
+    border-radius: 5px;
+    margin-left: 0.25rem;
 }
 
-@keyframes float {
-    0% {
-        transform: translateY(0) rotate(0deg);
-        opacity: 1;
-        border-radius: 0;
-    }
+#singupbtn:hover {
+    color: #00ffff;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.1);
+}
 
-    100% {
-        transform: translateY(-1000px) rotate(720deg);
+/* Animations */
+@keyframes slideDown {
+    from {
         opacity: 0;
-        border-radius: 50%;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
-@media (max-width: 480px) {
-    .container {
-        padding: 20px;
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
     }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
+.login-box {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Mobile First Responsive Design */
+@media (max-width: 480px) {
+    body {
+        padding: 0.5rem;
+        align-items: flex-start;
+        padding-top: 2rem;
+    }
+    
+    .container {
+        max-width: 100%;
+    }
+    
     .login-box {
-        padding: 30px 20px;
+        padding: 1.5rem 1rem;
+        border-radius: 12px;
+    }
+    
+    .login-box h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .messagebox {
+        padding: 0.8rem;
+        margin-bottom: 1rem;
+        border-radius: 10px;
+    }
+    
+    .messagebox div {
+        font-size: 0.85rem;
+    }
+    
+    .input-box {
+        margin-bottom: 1.25rem;
+    }
+    
+    .input-box input {
+        padding: 0.9rem;
+        font-size: 0.95rem;
+    }
+    
+    .input-box label {
+        font-size: 0.95rem;
+        left: 0.9rem;
+    }
+    
+    .input-box input:focus ~ label,
+    .input-box input:valid ~ label {
+        font-size: 0.75rem;
+    }
+    
+    .remember-forgot {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.8rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .remember-forgot label {
+        font-size: 0.8rem;
+    }
+    
+    .remember-forgot a {
+        font-size: 0.8rem;
+    }
+    
+    .btn {
+        padding: 0.9rem;
+        font-size: 0.95rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    .register-link {
+        font-size: 0.85rem;
+    }
+    
+    #singupbtn {
+        font-size: 0.85rem;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 320px) {
+    body {
+        padding: 0.25rem;
+        padding-top: 1rem;
+    }
+    
+    .login-box {
+        padding: 1rem 0.8rem;
+    }
+    
+    .login-box h2 {
+        font-size: 1.3rem;
+    }
+    
+    .input-box input {
+        padding: 0.8rem;
+    }
+}
+
+/* Tablet and larger screens */
+@media (min-width: 768px) {
+    .container {
+        max-width: 450px;
+    }
+    
+    .login-box {
+        padding: 2.5rem 2rem;
+    }
+    
+    .login-box h2 {
+        font-size: 2rem;
+    }
+}
+
+/* Prevent horizontal scroll and ensure content fits */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Loading state for button */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Focus states for accessibility */
+input:focus,
+button:focus {
+    outline: 2px solid #00ffff;
+    outline-offset: 2px;
+}
+
+/* Ensure no vertical scroll on mobile */
+@media (max-height: 700px) and (max-width: 480px) {
+    body {
+        align-items: flex-start;
+        padding-top: 1rem;
+    }
+    
+    .login-box {
+        max-height: none;
+    }
+    
+    .messagebox {
+        margin-bottom: 1rem;
     }
 }

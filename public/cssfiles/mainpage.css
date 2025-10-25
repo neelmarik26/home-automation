@@ -1,113 +1,222 @@
+/* cssfiles/mainpage.css */
+
 * {
-    padding: 0px;
-    margin: 0px;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-h1 {
-    color: rgb(0, 177, 231);
-    text-align: center;
-    text-shadow: 0px 0px 20px rgb(184, 32, 32);
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: #ffffff;
+    min-height: 100vh;
+    overflow-x: hidden;
 }
 
 .mainheding {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 1.5rem 2rem;
     display: flex;
-    justify-content: space-evenly;
+    justify-content: space-between;
     align-items: center;
-    border: 2px solid black;
-    position: sticky;
-    top: 0px;
-    background-color: rgba(240, 248, 255, 0.781);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.mainheding h1 {
+    font-size: 2.2rem;
+    background: linear-gradient(90deg, #00ffff, #00ffaa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+    letter-spacing: 2px;
 }
 
 .navbar {
-    /* border: 2px solid black; */
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 20px;
-    padding: 10px;
-    margin-bottom: 5px;
+    gap: 1rem;
 }
 
 .btn {
-    padding: 5px;
-    background-color: rgb(130, 206, 114);
-    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    color: #00ffff;
+    padding: 0.8rem 1.5rem;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .btn:hover {
-    transform: scale(1.1);
+    background: rgba(0, 255, 255, 0.2);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+#logout {
+    background: rgba(255, 0, 0, 0.1);
+    border: 1px solid rgba(255, 100, 100, 0.3);
+    color: #ff4444;
+}
+
+#logout:hover {
+    background: rgba(255, 0, 0, 0.2);
+    box-shadow: 0 0 20px rgba(255, 100, 100, 0.4);
 }
 
 .mainbox {
-    width: 90%;
-    min-height: 80vh;
-    /* border: 2px solid black; */
-    border-radius: 10px;
-    background-color: rgb(43, 42, 42);
     display: flex;
-    justify-self: center;
-    margin-top: 10px;
-    box-shadow: 0px 0px 10px black;
-    justify-content: space-evenly;
-    align-items: center;
+    justify-content: center;
+    gap: 3rem;
+    padding: 4rem 2rem;
+    flex-wrap: wrap;
 }
 
 .card {
-    height: 50%;
-    width: 20%;
-    max-width: 250px;
-    background-color: aliceblue;
-    overflow: hidden;
-    padding: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 20px;
-
-}
-
-.wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    padding: 6px;
-}
-
-.stylish-btn {
-    background: linear-gradient(135deg, #6e8efb, #a777e3);
-    color: white;
-    border: none;
-    padding: 14px 28px;
-    font-size: 16px;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
+    padding: 2rem;
+    width: 300px;
+    text-align: center;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(110, 142, 251, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     position: relative;
     overflow: hidden;
 }
 
-.stylish-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(110, 142, 251, 0.4);
-}
-
-.stylish-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 10px rgba(110, 142, 251, 0.3);
-}
-
-.stylish-btn::after {
+.card::before {
     content: '';
     position: absolute;
     top: 0;
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: 0.5s;
 }
 
-.stylish-btn:hover::after {
+.card:hover::before {
     left: 100%;
+}
+
+.card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 40px rgba(0, 255, 255, 0.2);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.wrapper {
+    margin-bottom: 1.5rem;
+}
+
+.wrapper h4 {
+    font-size: 1.5rem;
+    color: #00ffaa;
+    text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+    margin-bottom: 1rem;
+}
+
+.cardimg {
+    border-radius: 15px;
+    object-fit: cover;
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.card:hover .cardimg {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+}
+
+.stylish-btn {
+    background: linear-gradient(135deg, #00ffff, #00ffaa);
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    color: #0f2027;
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 5px 15px rgba(0, 255, 255, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.stylish-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transition: 0.5s;
+}
+
+.stylish-btn:hover::before {
+    left: 100%;
+}
+
+.stylish-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 255, 255, 0.5);
+}
+
+.stylish-btn:active {
+    transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .mainheding {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .mainheding h1 {
+        font-size: 1.8rem;
+    }
+    
+    .mainbox {
+        padding: 2rem 1rem;
+        gap: 2rem;
+    }
+    
+    .card {
+        width: 100%;
+        max-width: 350px;
+    }
+}
+
+/* Animation for page load */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.card:nth-child(2) {
+    animation-delay: 0.2s;
 }
