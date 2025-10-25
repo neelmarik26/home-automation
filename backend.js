@@ -1,4 +1,4 @@
-const express = require('express')
+const express = require("express")
 require('dotenv').config();
 const mongoose = require("mongoose");
 const cors = require('cors');
@@ -6,7 +6,6 @@ const path = require('path');
 const user = require('./models/userdataschem.js')
 
 const app = express()
-// const port = 3000
 let btn1sts = 0;
 let btn2sts = 0;
 
@@ -21,6 +20,7 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.use(express.json());
+// app.use(express.text({ type: '*/*' }));
 
 
 
@@ -34,6 +34,24 @@ try{
 app.get('/mainpage', (req, res) => {
   res.render('mainpage.ejs')
 });
+
+app.post('/mainpagetoken',async(req,res)=>{
+  const {usertoken}=req.body;
+  console.log(usertoken)
+  // const token = await user.findOne({_id:usertoken });
+  try{
+    const token = await user.findOne({_id:usertoken });
+    if(token){
+    console.log("token is found")
+    res.json({message:"token is found"})
+    }
+  }
+
+  catch(e){
+    console.log("toke is not found")
+    res.json({message:"token is not found"})
+  }
+})
 
 app.post('/mainpagedata', async (req, res) => {
   // console.log("received requstfrom main page ")
@@ -72,15 +90,13 @@ app.post('/olduser', async(req,res)=>{
     console.log(olduser)
     if(olduser.password==password){
       console.log('all ok login successfull');
-      res.json({reply:'user found',pass:'match',token:process.env.token})
+      res.json({reply:'user found',pass:'match',token:olduser._id})
     }
     else{
       console.log('password not match pls enter right password');
       res.json({reply:'user found',pass:'notmatch'})
     }
-  }
-  // const olduser = await user.findOne({ email:email });
-  // console.log(olduser);
+  }  
 })
 app.post('/newuser', async (req, res) => {
   try {
