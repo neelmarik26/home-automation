@@ -36,7 +36,7 @@ document.querySelector(".sub").addEventListener("click", (e) => {
             return;
         }
 
-        console.log({ username, email, password });
+        // console.log({ username, email, password });
 
         senddata({ username, email, password })
 
@@ -57,13 +57,16 @@ async function senddata(data) {
         const mydiv = document.getElementById('mydiv');
         mydiv.innerHTML = `<div class="message"><div class="mbox" >${result.reply} </div> `
         setTimeout(()=>{
-         callmainpage();
+         callmainpage(result.token);
+         console.log(result.token);
         },1000);
     }
 }
-async function callmainpage(){
+async function callmainpage(token){
+    window.localStorage.setItem("token",token)
     window.location.href = '/mainpage';
 }
+// reset button functalility 
 document.querySelector(".re").addEventListener('click',()=>{
     const emailInput = document.getElementById("email");
     emailInput.value = "";

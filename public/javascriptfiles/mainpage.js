@@ -72,6 +72,7 @@ async function verifytoken() {
 document.querySelector("#adminbtn").addEventListener('click',()=>{
    alert("this feture comming soon")
 })
+// about us button functionality
 document.querySelector("#about_us").addEventListener('click',()=>{
    alert("this feture comming soon")
 })
