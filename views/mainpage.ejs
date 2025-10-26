@@ -9,24 +9,84 @@
 </head>
 
 <body>
-    <div class="mainheding">
-        <h1> I.O.T HOME AUTOMATION </h1>
-        <nav class="navbar">
-            <button class="btn" id="adminbtn">admin</button>
-            <button class="btn" id="about_us">about us</button>
-            <button class="btn" id="logout">logout</button>
-        </nav>
-    </div>
-    <div class="mainbox">
-        <div class="card">
-            <div class="wrapper"><h4>light_1</h4></div>
-            <div class="wrapper"><div><img class="cardimg" height="100px" width="100px" src="assits/IMG_20250819_084553.jpg" alt="pic"></div></div>
-            <div class="wrapper"><button class="stylish-btn" id="buttonid1" >off</button></div>
+    <div class="document.querySelector(".user-list")">
+        <div class="mainheding">
+            <h1> I.O.T HOME AUTOMATION </h1>
+            <nav class="navbar">
+                <button class="btn" id="adminbtn">admin</button>
+                <button class="btn" id="about_us">about us</button>
+                <button class="btn" id="logout">logout</button>
+            </nav>
         </div>
-        <div class="card">
-            <div class="wrapper"><h4>light_1</h4></div>
-            <div class="wrapper"><div><img class="cardimg" height="100px" width="100px" src="assits/IMG_20250819_084553.jpg" alt="pic"></div></div>
-            <div class="wrapper"><button class="stylish-btn" id="buttonid2" >off</button></div>
+        <div class="mainbox">
+            <div class="card">
+                <div class="wrapper">
+                    <h4>light_1</h4>
+                </div>
+                <div class="wrapper">
+                    <div><img class="cardimg" height="100px" width="100px" src="assits/IMG_20250819_084553.jpg"
+                            alt="pic">
+                    </div>
+                </div>
+                <div class="wrapper"><button class="stylish-btn" id="buttonid1">off</button></div>
+            </div>
+            <div class="card">
+                <div class="wrapper">
+                    <h4>light_1</h4>
+                </div>
+                <div class="wrapper">
+                    <div><img class="cardimg" height="100px" width="100px" src="assits/IMG_20250819_084553.jpg"
+                            alt="pic">
+                    </div>
+                </div>
+                <div class="wrapper"><button class="stylish-btn" id="buttonid2">off</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- admin popup -->
+    <div id="popup" class="pop">
+        <nav class="adminnav">
+            <h3>Admin Panel</h3>
+            <div class="adminnav-buttons">
+                <button class="btna" onclick="showWifiPassword()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    WiFi Password change
+                </button>
+                <button class="btna" onclick="closePopup()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Close
+                </button>
+            </div>
+        </nav>
+        <div class="showactiveuser">
+            <div class="user-list-title">
+                Active Users
+                <span class="user-count"></span>
+            </div>
+            <div class="user-list">
+                <!-- Sample user data - in a real app this would come from a database -->
+                <!-- <div class="user-card">
+                    <div class="user-avatar">JD</div>
+                    <div class="user-info">
+                        <div class="user-name">John Doe</div>
+                        <div class="user-email">john.doe@example.com</div>
+                    </div>
+                    <div class="user-actions">
+                        <button class="delete-btn" onclick="deleteUser('user-id-here')" title="Delete User">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
+                        </svg>
+                        </button>
+                    </div>
+                    <div class="user-status"></div>
+                </div> -->
+            </div>
         </div>
     </div>
     <script src="javascriptfiles/mainpage.js"></script>

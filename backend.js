@@ -13,6 +13,9 @@ const loginAttempts = {};
 // connect to mongo db data base with user info
 
 mongoose.connect("mongodb+srv://neelmarik26_db_user:2hcODrH1Ratq8b0K@iothomeautomation.nayri10.mongodb.net/?retryWrites=true&w=majority&appName=IotHomeAutomation")
+// local host
+// mongoose.connect("mongodb://localhost:27017/")
+
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.log('MongoDB connection error:', err));
 
@@ -122,7 +125,7 @@ app.post('/olduser', async (req, res) => {
       attemptInfo.attempts = 0;
       attemptInfo.lockDuration *= 2; // double lock time every 5 failures
 
-      const waitTime = (attemptInfo.lockDuration / 1000)/2;
+      const waitTime = (attemptInfo.lockDuration / 1000) / 2;
       console.log(`Account locked for ${waitTime}s`);
       return res.json({
         reply: `Too many failed attempts.`,
@@ -130,10 +133,11 @@ app.post('/olduser', async (req, res) => {
         message: 'locked',
       });
     }
-   return res.json({
-      reply:  `${5 - attemptInfo.attempts} attempts left.`,
+    return res.json({
+      reply: `${5 - attemptInfo.attempts} attempts left.`,
       pass: 'notmatch',
-      message: " password not match. enter a right password.",});
+      message: " password not match. enter a right password.",
+    });
   }
 }
 )
@@ -172,6 +176,23 @@ app.post('/newuser', async (req, res) => {
     }
   }
 });
+app.post("/userdeleatbyid", async (req, res) => {
+  const userid = req.body.userid;
+  console.log(userid)
+  try {
+    const deletedUser = await user.findByIdAndDelete(userid);
+    if (deletedUser) {
+      console.log("User deleted:", deletedUser.name);
+      res.json({message:`user deleat ${deletedUser.name}`,action:"deleat"})
+    } else {
+      console.log("No user found with this ID");
+      res.json({message:`no user found releted this id`})
+    }
+  } catch (error) {
+      console.error("Error deleting user:", err);
+      res.json({message:" error comming"})
+  }
+})
 
 app.get("/esp", (req, res) => {
   res.json({
@@ -179,6 +200,18 @@ app.get("/esp", (req, res) => {
     button2: btn2sts
   });
 });
+
+app.get("/alluserinfo", async (req, res) => {
+  console.log("find all user data")
+  try {
+    const users = await user.find(); // ← this gets all users
+    console.log(users);
+    res.json(users)
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.json({ message: "there is some thing wrong" })
+  }
+})
 
 app.get('/', (req, res) => {
   res.render('login.ejs')
