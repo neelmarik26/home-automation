@@ -31,14 +31,15 @@ async function callmainpage(token) {
     window.localStorage.setItem("token", token)
     window.location.href = '/mainpage';
 }
-document.querySelector('.btn').addEventListener('click', () => {
+document.querySelector('.btn').addEventListener('click', (event) => {
+    event.preventDefault();
     const emailinput = document.querySelector('#emailinput');
     const passwordinput = document.querySelector('#passwordinput');
     const email = emailinput.value;
     const password = passwordinput.value;
     // console.log(email, password);
     senddata({ email, password })
-})
+});
 async function senddata(data) {
     try {
         const response = await fetch('/olduser', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
@@ -91,3 +92,103 @@ function startCountdown(seconds) {
         }
     }, 1000);
 }
+
+// forget passwor window
+
+function isValidEmail(email) {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    console.log(regex.test(email))
+    console.log(email)
+    return regex.test(email);
+}
+function closepopup() {
+    document.getElementById('forgotPasswordPopup').classList.remove('active');
+}
+function forgotPassword(params) {
+    document.getElementById('forgotPasswordPopup').classList.add('active');
+}
+async function otpmakeandsend() {
+    const usermail = document.querySelector('#forgetemail').value;
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    console.log(otp)
+    const response = await fetch('/sendmail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, otp }) })
+    const result = await response.json();
+    console.log('Server replied:', result);
+    return result
+}
+async function sendotp() {
+    const usermail = document.querySelector('#forgetemail').value;
+    if (isValidEmail(usermail)) {
+        const result = await otpmakeandsend(); // backend sends OTP and returns { message, otp }
+
+        if (result.message === " i get this") {
+            // Show OTP section, hide send button
+            document.getElementById('otpSection').style.display = 'block';
+            document.getElementById('sendOtp').style.display = 'none';
+
+            const verifyBtn = document.getElementById('verifyOtp');
+            verifyBtn.style.display = 'none'; // hide until OTP complete
+            verifyBtn.replaceWith(verifyBtn.cloneNode(true)); // remove old event listeners
+            const newVerifyBtn = document.getElementById('verifyOtp');
+
+            // Setup OTP input handling
+            setupOTP((isComplete, otp) => {
+                if (isComplete && otp === result.otp) {
+                    newVerifyBtn.style.display = 'block';
+                    console.log("ok otp")
+                } else {
+                    newVerifyBtn.style.display = 'none';
+                    console.log("wrong otp")
+                }
+            });
+        }
+    } else {
+        console.log("Invalid email format");
+    }
+}
+
+// })
+function setupOTP(onStatusChange) {
+    const inputs = document.querySelectorAll(".otp-digit");
+    if (!inputs.length) return;
+
+    inputs[0].focus();
+
+    inputs.forEach((input, index) => {
+        input.addEventListener("input", () => {
+            input.value = input.value.replace(/\D/g, '');
+
+            if (input.value && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+
+            const otp = Array.from(inputs).map(i => i.value).join('');
+            const allFilled = otp.length === inputs.length;
+
+            // Call the callback function with status and value
+            onStatusChange(allFilled, otp);
+        });
+
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Backspace" && !input.value && index > 0) {
+                inputs[index - 1].focus();
+            }
+        });
+    });
+}
+
+async function restartfullsection() {
+    document.getElementById('otpSection').style.display = 'none';
+    document.getElementById('verifyOtp').style.display = 'none';
+    const inputs = document.querySelectorAll('.otp-digit');
+    inputs.forEach(input => {
+        input.value = '';
+    });
+    await sendotp()
+}
+
+// write code for change pass word
+function submitotp () {
+    alert("hello i am impliment some time leter 😗//")
+}
+

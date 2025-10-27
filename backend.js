@@ -5,6 +5,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const user = require('./models/userdataschem.js')
+const nodemailer = require("nodemailer");
 
 const app = express()
 let btn1sts = 0;
@@ -13,8 +14,8 @@ const loginAttempts = {};
 // connect to mongo db data base with user info
 
 mongoose.connect("mongodb+srv://neelmarik26_db_user:2hcODrH1Ratq8b0K@iothomeautomation.nayri10.mongodb.net/?retryWrites=true&w=majority&appName=IotHomeAutomation")
-// local host
-// mongoose.connect("mongodb://localhost:27017/")
+  // local host
+  // mongoose.connect("mongodb://localhost:27017/")
 
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.log('MongoDB connection error:', err));
@@ -183,16 +184,50 @@ app.post("/userdeleatbyid", async (req, res) => {
     const deletedUser = await user.findByIdAndDelete(userid);
     if (deletedUser) {
       console.log("User deleted:", deletedUser.name);
-      res.json({message:`user deleat ${deletedUser.name}`,action:"deleat"})
+      res.json({ message: `user deleat ${deletedUser.name}`, action: "deleat" })
     } else {
       console.log("No user found with this ID");
-      res.json({message:`no user found releted this id`})
+      res.json({ message: `no user found releted this id` })
     }
   } catch (error) {
-      console.error("Error deleting user:", err);
-      res.json({message:" error comming"})
+    console.error("Error deleting user:", err);
+    res.json({ message: " error comming" })
   }
 })
+
+// send mail to user 
+app.post("/sendmail", async (req, res) => {
+  const { usermail, otp } = req.body
+  console.log(usermail, otp)
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "neelmarik26@gmail.com",
+        pass: "nhel vbgd nesl iqqc" // use Gmail app password
+      }
+    });
+
+    await transporter.sendMail({
+      from: "neelmarik26@gmail.com",
+      to: usermail,
+      subject: "Your Verification Code",
+      html: `
+    <p>Hi there,</p>
+    <p>Your one-time verification code is:</p>
+    <h2 style="color:#2e6c80;">${otp}</h2>
+    <p>This code will expire in 10 minutes.</p>
+    <p>If you didn’t request this, please ignore this message.</p>
+    <br>
+    <p>– The iot Team</p>
+  `
+    });
+
+    res.json({ message: " i get this" ,otp:otp })
+  } catch (error) {
+    res.json({ message: "not done", error: error.message });
+  }
+});
 
 app.get("/esp", (req, res) => {
   res.json({
@@ -205,7 +240,7 @@ app.get("/alluserinfo", async (req, res) => {
   console.log("find all user data")
   try {
     const users = await user.find(); // ← this gets all users
-    console.log(users);
+    // console.log(users);
     res.json(users)
   } catch (err) {
     console.error('Error fetching users:', err);
