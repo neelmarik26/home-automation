@@ -95,6 +95,7 @@ function startCountdown(seconds) {
 
 // forget passwor window
 
+
 function isValidEmail(email) {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     console.log(regex.test(email))
@@ -188,7 +189,60 @@ async function restartfullsection() {
 }
 
 // write code for change pass word
-function submitotp () {
-    alert("hello i am impliment some time leter 😗//")
+function submitotp() {
+    document.getElementById('forgotPasswordPopup').classList.remove('active');
+    document.getElementById('newpassword-popup').classList.add('active');
 }
+document.getElementById('closePopupf').addEventListener('click', () => {
+    document.getElementById('newpassword-popup').classList.remove('active');
+});
 
+
+
+ async function updatepass() {
+    console.log("l am update pass")
+    const passwordInput = document.getElementById("newPassword");
+    const password = passwordInput.value;
+    
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    let message = "";
+
+    if (!hasUppercase) {
+        message = "Add at least one uppercase letter.";
+    } else if (!hasLowercase) {
+        message = "Add at least one lowercase letter.";
+    } else if (!hasNumber) {
+        message = "Include at least one number.";
+    } else if (!hasSpecial) {
+        message = "Include at least one special character.";
+    } else {
+        const conpassinput = document.getElementById("confirmPassword");
+        const conformpass = conpassinput.value;
+        console.log(password,conformpass)
+        if (conformpass === password) {
+            message = "all ok boss"
+        }
+        else {
+            message = "2 password are not match"
+        }
+    }
+    await savetodb(message, password);
+};
+
+ async function savetodb(message, newpassword) {
+    if (message === "all ok boss") {
+        const usermail = document.querySelector('#forgetemail').value;
+        // console.log(usermail, message, newpassword)
+        const response = await fetch('/cpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, newpassword }) })
+        const result = await response.json();
+        console.log('Server replied:', result.message);
+
+    }
+    else{
+        console.log(message);
+    }
+}

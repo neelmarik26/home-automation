@@ -229,6 +229,41 @@ app.post("/sendmail", async (req, res) => {
     res.json({ message: "not done", error: error.message });
   }
 });
+// change passwort to data base
+app.post("/cpass", async (req, res) => {
+  const { usermail, newpassword } = req.body;
+  const haspass = await hashpassword(newpassword);
+  try {
+    const olduser = await user.findOne({ email: usermail });
+    if (!olduser) {
+      res.json({ message: "user not found" })
+    }
+    else {
+      olduser.password = haspass;
+      await olduser.save();
+      console.log("Password updated successfully");
+      const sendSmtpEmail = {
+        sender: { name: "Neel from IoT", email: "neelmarik26@gmail.com" },
+        to: [{ email: usermail }],
+        subject: "security :password update succes fully",
+        htmlContent: `
+      <p>Hi there,</p>
+      <p>your password is update successfylly and password is:</p>
+      <h2 style="color:#2e6c80;">${newpassword}</h2>
+      <p>keep connect with us </p>
+      <p>welcome</p>
+      <br>
+      <p>– The IoT Team</p>
+    `,
+      };
+      await apiInstance.sendTransacEmail(sendSmtpEmail);
+      res.json({ message: "Password updated successfully" })
+    }
+  } catch (e) {
+    console.error("Error updating password:", e);
+    res.json({ message: "Error updating password" })
+  }
+})
 
 app.get("/esp", (req, res) => {
   res.json({

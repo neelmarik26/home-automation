@@ -35,8 +35,8 @@
             </form>
         </div>
     </div>
-    <script src="javascriptfiles/login.js"></script>
-</body>
+  
+
 <!-- forget pass window -->
 <div class="popup-overlay" id="forgotPasswordPopup">
     <div class="popup">
@@ -52,7 +52,8 @@
                     <input type="email" id="forgetemail" placeholder="Enter your email address" required>
                 </div>
                 <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
-                    We'll send a One-Time Password (OTP) to your email to verify your identity. pls enter full otp for submit button. 
+                    We'll send a One-Time Password (OTP) to your email to verify your identity. pls enter full otp for
+                    submit button.
                 </p>
             </div>
 
@@ -77,9 +78,29 @@
         <div class="popup-footer">
             <button class="btnf btn-cancel" id="cancelReset" onclick="closepopup()">Cancel</button>
             <button class="btnf btn-send" id="sendOtp" onclick="sendotp()">Send OTP</button>
-            <button class="btnf btn-send" id="verifyOtp" onclick="submitotp()" style="display: none;">Submit OTP</button>
+            <button class="btnf btn-send" id="verifyOtp" onclick="submitotp()" style="display: none;">Submit
+                OTP</button>
         </div>
     </div>
 </div>
-
+<!-- give new pass word window -->
+<div class="newpass-popup" id="newpassword-popup">
+    <div class="popup-content">
+        <span class="close-btnf" id="closePopupf">&times;</span>
+        <h2 id="givemsg">Set New Password</h2>
+        <form id="newpassForm">
+            <div class="form-groupf">
+                <label for="newPassword">New Password</label>
+                <input type="password" id="newPassword" placeholder="Enter new password" required>
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" placeholder="Confirm new password" required>
+            </div>
+            <button type="button" class="submit-btnf" id="uppass" onclick="updatepass()">Update Password</button>
+        </form>
+    </div>
+</div>
+<script src="javascriptfiles/login.js"></script>
+</body>
 </html>
