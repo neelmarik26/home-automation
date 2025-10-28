@@ -5,7 +5,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const user = require('./models/userdataschem.js')
-const nodemailer = require("nodemailer");
+const SibApiV3Sdk = require("sib-api-v3-sdk");
 
 const app = express()
 let btn1sts = 0;
@@ -196,34 +196,35 @@ app.post("/userdeleatbyid", async (req, res) => {
 })
 
 // send mail to user 
+
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+const apiKey = defaultClient.authentications["api-key"];// my apui kyyy 
+apiKey.apiKey = "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"; // your Brevo key
+
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
+
 app.post("/sendmail", async (req, res) => {
   const { usermail, otp } = req.body
   console.log(usermail, otp)
+  const sendSmtpEmail = {
+    sender: { name: "Neel from IoT", email: "neelmarik26@gmail.com" },
+    to: [{ email: usermail }],
+    subject: "Your Verification Code",
+    htmlContent: `
+      <p>Hi there,</p>
+      <p>Your one-time verification code is:</p>
+      <h2 style="color:#2e6c80;">${otp}</h2>
+      <p>This code will expire in 10 minutes.</p>
+      <p>If you didn’t request this, please ignore this message.</p>
+      <br>
+      <p>– The IoT Team</p>
+    `,
+  };
+
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: "neelmarik26@gmail.com",
-        pass: "nhel vbgd nesl iqqc" // use Gmail app password
-      }
-    });
-
-    await transporter.sendMail({
-      from: "neelmarik26@gmail.com",
-      to: usermail,
-      subject: "Your Verification Code",
-      html: `
-    <p>Hi there,</p>
-    <p>Your one-time verification code is:</p>
-    <h2 style="color:#2e6c80;">${otp}</h2>
-    <p>This code will expire in 10 minutes.</p>
-    <p>If you didn’t request this, please ignore this message.</p>
-    <br>
-    <p>– The iot Team</p>
-  `
-    });
-
-    res.json({ message: " i get this" ,otp:otp })
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    res.json({ message: " i get this", otp: otp })
   } catch (error) {
     res.json({ message: "not done", error: error.message });
   }

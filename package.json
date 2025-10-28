@@ -19,6 +19,7 @@
     "ejs": "^3.1.10",
     "express": "^5.1.0",
     "mongoose": "^8.19.1",
-    "nodemailer": "^7.0.10"
+    "nodemailer": "^7.0.10",
+    "sib-api-v3-sdk": "^8.5.0"
   }
 }
