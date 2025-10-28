@@ -240,8 +240,10 @@ document.getElementById('closePopupf').addEventListener('click', () => {
         const response = await fetch('/cpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, newpassword }) })
         const result = await response.json();
         console.log('Server replied:', result.message);
-        document.getElementById('givemsg').innerHTML=result.
-        document.getElementById('newpassword-popup').classList.remove('active');
+        document.getElementById('givemsg').innerHTML=result.message
+        if(result. message==="password update succes fully"){
+             document.getElementById('newpassword-popup').classList.remove('active');
+        }
     }
     else{
         console.log(message);
