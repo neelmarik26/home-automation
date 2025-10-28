@@ -241,7 +241,7 @@ document.getElementById('closePopupf').addEventListener('click', () => {
         const result = await response.json();
         console.log('Server replied:', result.message);
         document.getElementById('givemsg').innerHTML=result.message
-        if(result. message==="password update succes fully"){
+        if(result. message==="password update succesfully"){
              document.getElementById('newpassword-popup').classList.remove('active');
         }
     }
