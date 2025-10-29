@@ -6,17 +6,28 @@ const bcrypt = require('bcrypt');
 const path = require('path');
 const user = require('./models/userdataschem.js')
 const SibApiV3Sdk = require("sib-api-v3-sdk");
+const WebSocket = require("ws");
+const http = require("http");
 
 const app = express()
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+// gloubal variable  write here ..................
 let btn1sts = 0;
 let btn2sts = 0;
+// innitializing the esp buttton sts 
+let espSocket = null;
+// espSocket.send(JSON.stringify({button:"all",status:0}));
+// let buttonStates = {
+//   button1: 0,
+//   button2: 0
+// };
 const loginAttempts = {};
 // connect to mongo db data base with user info
 
 mongoose.connect("mongodb+srv://neelmarik26_db_user:2hcODrH1Ratq8b0K@iothomeautomation.nayri10.mongodb.net/?retryWrites=true&w=majority&appName=IotHomeAutomation")
   // local host
   // mongoose.connect("mongodb://localhost:27017/")
-
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.log('MongoDB connection error:', err));
 
@@ -58,28 +69,33 @@ app.post('/mainpagetoken', async (req, res) => {
   }
 })
 
-app.post('/mainpagedata', async (req, res) => {
-  // console.log("received requstfrom main page ")
+app.post("/mainpagedata", async (req, res) => {
   const { id, status } = req.body;
-  console.log(id + "---" + status)
-  if (id == "btn1") {
-    if (status == 1) {
-      btn1sts = 1;
+  console.log(id + " --- " + status);
+  if (espSocket && espSocket.readyState === WebSocket.OPEN) {
+    try {
+      // Update button state only if ID is valid
+      if (id === "btn1") {
+        btn1sts=status
+        console.log("button1 sts is ==>",btn1sts)
+        espSocket.send(JSON.stringify({button:id,status:btn1sts}));
+        res.json({ reply: "working on your request", received: req.body });
+      }
+      else if (id === "btn2") {
+        btn2sts=status
+        console.log("button2 sts is ==>",btn2sts)
+        espSocket.send(JSON.stringify({button:id,status:btn2sts}));
+        res.json({ reply: "working on your request", received: req.body });
+      } else {
+        res.status(400).json({ error: "Invalid button ID" });
+      }
     }
-    else {
-      btn1sts = 0;
+    catch (e) {
+      res.json({ reply: "error occer ", err: e.message })
     }
   }
-  if (id == "btn2") {
-    if (status == 1) {
-      btn2sts = 1;
-    }
-    else {
-      btn2sts = 0;
-    }
-  }
-  res.json({ reply: "working on your request", received: req.body });
-})
+});
+
 // for old user login 
 app.post('/olduser', async (req, res) => {
   console.log('get request for login');
@@ -264,13 +280,33 @@ app.post("/cpass", async (req, res) => {
     res.json({ message: "Error updating password" })
   }
 })
+// websocket connection with esp............
 
-app.get("/esp", (req, res) => {
-  res.json({
-    button1: btn1sts,
-    button2: btn2sts
+// app.get("/esp", (req, res) => {
+//   res.json({
+//     button1: btn1sts,
+//     button2: btn2sts
+//   });
+// });
+wss.on("connection", (ws, req) => {
+  const ip = req.socket.remoteAddress;
+  console.log("ESP connected via WebSocket.ip is :", ip);
+  ws.send(JSON.stringify({button:"all",status:0}));
+  espSocket = ws
+  // ende initial message 
+  ws.send(JSON.stringify({message :"hello from server "}));
+  // hendel message from esp
+  ws.on("message", (msg) => {
+    console.log("Received from ESP:", msg.toString());
+  });
+  // close connection 
+  ws.on("close", () => {
+    console.log("Client disconnected")
+    espSocket = null;
   });
 });
+
+// web socket connection end here............
 
 app.get("/alluserinfo", async (req, res) => {
   console.log("find all user data")
@@ -303,8 +339,8 @@ async function checkPassword(plainPassword, hashedPassword) {
 }
 
 // starting the server
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+// const port = process.env.PORT || 3000;
+server.listen(3000, "0.0.0.0", () => {
+  console.log(`Example app listening on port 3000`)
   console.log('Signup endpoint: POST http://localhost:3000/');
 })

@@ -199,11 +199,11 @@ document.getElementById('closePopupf').addEventListener('click', () => {
 
 
 
- async function updatepass() {
+async function updatepass() {
     console.log("l am update pass")
     const passwordInput = document.getElementById("newPassword");
     const password = passwordInput.value;
-    
+
     const hasUppercase = /[A-Z]/.test(password);
     const hasLowercase = /[a-z]/.test(password);
     const hasNumber = /\d/.test(password);
@@ -222,7 +222,7 @@ document.getElementById('closePopupf').addEventListener('click', () => {
     } else {
         const conpassinput = document.getElementById("confirmPassword");
         const conformpass = conpassinput.value;
-        console.log(password,conformpass)
+        console.log(password, conformpass)
         if (conformpass === password) {
             message = "all ok boss"
         }
@@ -233,20 +233,22 @@ document.getElementById('closePopupf').addEventListener('click', () => {
     await savetodb(message, password);
 };
 
- async function savetodb(message, newpassword) {
+async function savetodb(message, newpassword) {
     if (message === "all ok boss") {
         const usermail = document.querySelector('#forgetemail').value;
         // console.log(usermail, message, newpassword)
         const response = await fetch('/cpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, newpassword }) })
         const result = await response.json();
         console.log('Server replied:', result.message);
-        document.getElementById('givemsg').innerHTML=result.message
-        if(result. message==="password update succesfully"){
-             document.getElementById('newpassword-popup').classList.remove('active');
+        document.getElementById('givemsg').innerHTML = result.message;
+        if (result.message === "Password updated successfully") {
+            document.getElementById('mxbox').innerHTML=result.message
+            document.getElementById('newpassword-popup').classList.remove('active');
+            console.log("hello i run when pass chenge");
         }
     }
-    else{
+    else {
         console.log(message);
-        document.getElementById('givemsg').innerHTML= message
+        document.getElementById('givemsg').innerHTML = message
     }
 }
