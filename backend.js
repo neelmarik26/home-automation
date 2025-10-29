@@ -11,7 +11,7 @@ const http = require("http");
 
 const app = express()
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server});
 // gloubal variable  write here ..................
 let btn1sts = 0;
 let btn2sts = 0;
@@ -339,8 +339,8 @@ async function checkPassword(plainPassword, hashedPassword) {
 }
 
 // starting the server
-// const port = process.env.PORT || 3000;
-server.listen(3000, "0.0.0.0", () => {
-  console.log(`Example app listening on port 3000`)
-  console.log('Signup endpoint: POST http://localhost:3000/');
+const port = process.env.PORT || 10000;
+server.listen(port, () => {
+  console.log(`Example app listening on port ${port}`)
+  console.log(`Signup endpoint: POST http://localhost:${port}/`);
 })
