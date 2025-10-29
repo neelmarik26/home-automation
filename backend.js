@@ -15,16 +15,10 @@ const wss = new WebSocket.Server({ server});
 // gloubal variable  write here ..................
 let btn1sts = 0;
 let btn2sts = 0;
-// innitializing the esp buttton sts 
 let espSocket = null;
-// espSocket.send(JSON.stringify({button:"all",status:0}));
-// let buttonStates = {
-//   button1: 0,
-//   button2: 0
-// };
 const loginAttempts = {};
-// connect to mongo db data base with user info
 
+// connect to mongo db data base with user info
 mongoose.connect("mongodb+srv://neelmarik26_db_user:2hcODrH1Ratq8b0K@iothomeautomation.nayri10.mongodb.net/?retryWrites=true&w=majority&appName=IotHomeAutomation")
   // local host
   // mongoose.connect("mongodb://localhost:27017/")
@@ -36,20 +30,9 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.use(express.json());
-// app.use(express.text({ type: '*/*' }));
+// end.....................................
 
-
-
-app.get("/supage", (req, res) => {
-  try {
-    res.render('singuppage.ejs')
-  } catch (err) {
-    console.log('errrr', err)
-  }
-})
-app.get('/mainpage', (req, res) => {
-  res.render('mainpage.ejs')
-});
+// post request start from here ......................
 
 app.post('/mainpagetoken', async (req, res) => {
   const { usertoken } = req.body;
@@ -280,14 +263,9 @@ app.post("/cpass", async (req, res) => {
     res.json({ message: "Error updating password" })
   }
 })
+// all post request end here.........................
 // websocket connection with esp............
 
-// app.get("/esp", (req, res) => {
-//   res.json({
-//     button1: btn1sts,
-//     button2: btn2sts
-//   });
-// });
 wss.on("connection", (ws, req) => {
   const ip = req.socket.remoteAddress;
   console.log("ESP connected via WebSocket.ip is :", ip);
@@ -307,6 +285,18 @@ wss.on("connection", (ws, req) => {
 });
 
 // web socket connection end here............
+// all get request is here.............................
+app.get("/supage", (req, res) => {
+  try {
+    res.render('singuppage.ejs')
+  } catch (err) {
+    console.log('errrr', err)
+  }
+});
+
+app.get('/mainpage', (req, res) => {
+  res.render('mainpage.ejs')
+});
 
 app.get("/alluserinfo", async (req, res) => {
   console.log("find all user data")
@@ -324,6 +314,8 @@ app.get('/', (req, res) => {
   res.render('login.ejs')
 });
 
+// ,,,,,,,,,,.....................................................................
+
 // all function write here 
 
 // hased a password
@@ -332,6 +324,7 @@ async function hashpassword(password) {
   const hashedpassword = await bcrypt.hash(password, saltrounds);
   return hashedpassword;
 }
+
 // cheak the password is match or not
 async function checkPassword(plainPassword, hashedPassword) {
   const match = await bcrypt.compare(plainPassword, hashedPassword);
