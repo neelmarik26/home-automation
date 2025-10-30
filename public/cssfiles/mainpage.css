@@ -511,3 +511,153 @@ body {
     background: #2ecc71;
     flex-shrink: 0;
 }
+/*  wi fi pass word change pop upp................. */
+
+
+/* ===== WiFi Password Popup ===== */
+.wifipass {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.6); /* dark blur overlay */
+    z-index: 2000;
+    backdrop-filter: blur(8px);
+    padding: 20px;
+}
+
+.wifipass.active {
+    display: flex;
+}
+
+/* Popup Box */
+.wifipass form {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    backdrop-filter: blur(15px);
+    border-radius: 16px;
+    padding: 2rem 1.5rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    text-align: center;
+    color: #fff;
+    animation: wifiFadeIn 0.25s ease-out;
+}
+
+@keyframes wifiFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Heading */
+#wifipassheding {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(90deg, #00ffff, #00ffaa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 25px rgba(0, 255, 255, 0.4);
+    letter-spacing: 1px;
+}
+
+/* Labels and Inputs */
+.wifilebel {
+    display: block;
+    text-align: left;
+    font-weight: 500;
+    margin: 10px 0 5px;
+    color: #aefcff;
+}
+
+.wifiinput {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.wifiinput:focus {
+    border-color: #00ffff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+/* Buttons */
+.wifibtn {
+    border: none;
+    border-radius: 25px;
+    padding: 10px 20px;
+    margin: 15px 8px 0;
+    cursor: pointer;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.wifibtn[type="submit"] {
+    background: linear-gradient(135deg, #00ffff, #00ffaa);
+    color: #0f2027;
+    box-shadow: 0 4px 15px rgba(0, 255, 255, 0.4);
+}
+
+.wifibtn[type="submit"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 255, 255, 0.5);
+}
+
+.wifibtn[type="button"] {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.wifibtn[type="button"]:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .wifipass form {
+        padding: 1.5rem 1rem;
+    }
+
+    #wifipassheding {
+        font-size: 1.25rem;
+    }
+
+    .wifibtn {
+        width: 100%;
+        margin: 10px 0 0;
+    }
+}
+button:disabled,
+.wifibtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    filter: grayscale(30%);
+    transform: none; /* disable hover lift */
+    box-shadow: none; /* remove glow */
+}
+.fromwrapper{
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+}

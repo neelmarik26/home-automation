@@ -1,3 +1,5 @@
+const { set } = require("mongoose");
+
 console.log("pggram run success fully")
 
 window.addEventListener('DOMContentLoaded', function () {
@@ -124,3 +126,37 @@ async function deleteUser(userid,btn) {
   }
 }
 // esp pass word change functanility 
+function changeespwifi(){
+   closePopup();
+   document.querySelector('.wifipass').classList.add('active');
+   document.getElementById("ssid").value = "";
+   document.getElementById("ssidpasspassword").value = "";
+}
+function closeWifiPopup(){
+   document.querySelector('.wifipass').classList.remove('active');
+}
+document.getElementById('changewifi').addEventListener('click',async(e)=>{
+   e.preventDefault();
+   const ssid=document.getElementById('ssid').value;
+   const password=document.getElementById('ssidpasspassword').value;
+   document.getElementById("changewifi").disabled = true;
+   console.log("new ssid==>",ssid);
+   console.log("new password==>",password);
+   const response= await fetch ("/esp_cpass",{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ssid,password }) })
+   const result = await response.json();
+   if(result.message==="esp is not connected"){
+      document.getElementById("changewifi").disabled = false;
+      document.getElementById('wifipassheding').innerHTML="ESP is not connected. Please try again later.";
+   }
+   else if(result.message==="esp pass word change request sent"){
+      document.getElementById('wifipassheding').innerHTML="Request sent to ESP. It will change WiFi settings shortly.";
+      setTimeout(() => {
+         document.getElementById("changewifi").disabled = false;
+         closeWifiPopup();
+      },5000);
+   }
+   else if(result.error){
+      document.getElementById("changewifi").disabled = false;
+      document.getElementById('wifipassheding').innerHTML="Error occurred: "+result.error;
+   }
+});

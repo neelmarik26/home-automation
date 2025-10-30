@@ -11,7 +11,7 @@ const http = require("http");
 
 const app = express()
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server});
+const wss = new WebSocket.Server({ server });
 // gloubal variable  write here ..................
 let btn1sts = 0;
 let btn2sts = 0;
@@ -59,15 +59,15 @@ app.post("/mainpagedata", async (req, res) => {
     try {
       // Update button state only if ID is valid
       if (id === "btn1") {
-        btn1sts=status
-        console.log("button1 sts is ==>",btn1sts)
-        espSocket.send(JSON.stringify({button:id,status:btn1sts}));
+        btn1sts = status
+        console.log("button1 sts is ==>", btn1sts)
+        espSocket.send(JSON.stringify({ button: id, status: btn1sts }));
         res.json({ reply: "working on your request", received: req.body });
       }
       else if (id === "btn2") {
-        btn2sts=status
-        console.log("button2 sts is ==>",btn2sts)
-        espSocket.send(JSON.stringify({button:id,status:btn2sts}));
+        btn2sts = status
+        console.log("button2 sts is ==>", btn2sts)
+        espSocket.send(JSON.stringify({ button: id, status: btn2sts }));
         res.json({ reply: "working on your request", received: req.body });
       } else {
         res.status(400).json({ error: "Invalid button ID" });
@@ -228,6 +228,25 @@ app.post("/sendmail", async (req, res) => {
     res.json({ message: "not done", error: error.message });
   }
 });
+// chenge pass word to esp wifi 
+app.post("/esp_cpass", async (req, res) => {
+  const { ssid, password } = req.body;
+  console.log("new ssid is ==>", ssid);
+  console.log("new password is ==>", password);
+  if (espSocket && espSocket.readyState === WebSocket.OPEN) {
+    try {
+      espSocket.send(JSON.stringify({ ssid:ssid, password: password }));
+      res.json({ message: "esp pass word change request sent" })
+    } catch (e) {
+      console.log("error occer while sending data to esp", e.message);
+      res.json({ message: "error occer while sending data to esp", error: e.message })
+    }
+  }
+  else{
+    console.log("esp is not connected");
+    res.json({message:"esp is not connected"});
+  }
+});
 // change passwort to data base
 app.post("/cpass", async (req, res) => {
   const { usermail, newpassword } = req.body;
@@ -269,10 +288,10 @@ app.post("/cpass", async (req, res) => {
 wss.on("connection", (ws, req) => {
   const ip = req.socket.remoteAddress;
   console.log("ESP connected via WebSocket.ip is :", ip);
-  ws.send(JSON.stringify({button:"all",status:0}));
+  ws.send(JSON.stringify({ button: "all", status: 0 }));
   espSocket = ws
   // ende initial message 
-  ws.send(JSON.stringify({message :"hello from server "}));
+  ws.send(JSON.stringify({ message: "hello from server " }));
   // hendel message from esp
   ws.on("message", (msg) => {
     console.log("Received from ESP:", msg.toString());
