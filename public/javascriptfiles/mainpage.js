@@ -1,5 +1,3 @@
-const { set } = require("mongoose");
-
 console.log("pggram run success fully")
 
 window.addEventListener('DOMContentLoaded', function () {
