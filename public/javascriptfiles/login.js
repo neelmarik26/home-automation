@@ -252,3 +252,15 @@ async function savetodb(message, newpassword) {
         document.getElementById('givemsg').innerHTML = message
     }
 }
+
+// eye button functanaility 
+const passwordInput = document.getElementById("passwordinput");
+const toggleBtn = document.getElementById("togglePassword");
+const eyeIcon = document.getElementById("eyeicon");
+toggleBtn.addEventListener("click", () => {
+  const isPassword = passwordInput.type === "password";
+  passwordInput.type = isPassword ? "text" : "password";
+  
+  // Change image based on state
+  eyeIcon.src = isPassword ? "assits/closeeye.svg" : "assits/openey.svg";
+});

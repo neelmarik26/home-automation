@@ -52,6 +52,50 @@ document.getElementById('buttonid2').addEventListener("click", async () => {
       senddatatobackend({ id, status })
    }
 })
+document.getElementById('buttonid3').addEventListener("click", async () => {
+   const message = await verifytoken()
+   if (message == "token is not found") {
+      window.localStorage.removeItem('token');
+      window.location.href = '/';
+   } else {
+      const button3 = document.getElementById('buttonid3')
+      let status = 0;
+      let id = "btn3";
+      if (button3.textContent == "off") {
+         button3.textContent = 'on';
+         console.log("button3---" + "1(on)");
+         status = 1;
+      }
+      else {
+         button3.textContent = "off"
+         console.log("button3---" + "0(off)");
+         status = 0;
+      }
+      senddatatobackend({ id, status })
+   }
+})
+document.getElementById('buttonid4').addEventListener("click", async () => {
+   const message = await verifytoken()
+   if (message == "token is not found") {
+      window.localStorage.removeItem('token');
+      window.location.href = '/';
+   } else {
+      const button4 = document.getElementById('buttonid4')
+      let status = 0;
+      let id = "btn4";
+      if (button4.textContent == "off") {
+         button4.textContent = 'on';
+         console.log("button4---" + "1(on)");
+         status = 1;
+      }
+      else {
+         button4.textContent = "off"
+         console.log("button4---" + "0(off)");
+         status = 0;
+      }
+      senddatatobackend({ id, status })
+   }
+})
 async function senddatatobackend(data) {
    const response = await fetch('/mainpagedata', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
    const result = await response.json();

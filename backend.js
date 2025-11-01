@@ -15,6 +15,8 @@ const wss = new WebSocket.Server({ server });
 // gloubal variable  write here ..................
 let btn1sts = 0;
 let btn2sts = 0;
+let btn3sts = 0;
+let btn4sts = 0;
 let espSocket = null;
 const loginAttempts = {};
 
@@ -44,6 +46,9 @@ app.post('/mainpagetoken', async (req, res) => {
       console.log("token is found")
       res.json({ message: "token is found" })
     }
+    else{
+      res.json({ message: "token is not found" })
+    }
   }
 
   catch (e) {
@@ -69,7 +74,17 @@ app.post("/mainpagedata", async (req, res) => {
         console.log("button2 sts is ==>", btn2sts)
         espSocket.send(JSON.stringify({ button: id, status: btn2sts }));
         res.json({ reply: "working on your request", received: req.body });
-      } else {
+      }else if (id === "btn3") {
+        btn3sts = status
+        console.log("button3 sts is ==>", btn3sts)
+        espSocket.send(JSON.stringify({ button: id, status: btn3sts }));
+        res.json({ reply: "working on your request", received: req.body });
+      }else if (id === "btn4") {
+        btn4sts = status
+        console.log("button4 sts is ==>", btn4sts)
+        espSocket.send(JSON.stringify({ button: id, status: btn4sts }));
+        res.json({ reply: "working on your request", received: req.body });
+      }else {
         res.status(400).json({ error: "Invalid button ID" });
       }
     }
