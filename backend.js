@@ -5,6 +5,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const user = require('./models/userdataschem.js')
+const ButtonState = require("./models/LAST5BUTTON.js");
 const SibApiV3Sdk = require("sib-api-v3-sdk");
 const WebSocket = require("ws");
 const http = require("http");
@@ -26,7 +27,31 @@ mongoose.connect("mongodb+srv://neelmarik26_db_user:2hcODrH1Ratq8b0K@iothomeauto
   // mongoose.connect("mongodb://localhost:27017/")
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.log('MongoDB connection error:', err));
-
+//  at frist get all sts from data base and set to variable
+async function initializeButtonStates() {
+  try {
+    const buttons = await ButtonState.find({});
+    buttons.forEach(button => {
+      switch (button.buttonName) {
+        case 'btn1':
+          btn1sts = parseInt(button.state);
+          break;
+        case 'btn2':
+          btn2sts = parseInt(button.state);
+          break;
+        case 'btn3':
+          btn3sts = parseInt(button.state);
+          break;
+        case 'btn4':
+          btn4sts = parseInt(button.state);
+          break;
+      }
+    })
+    console.log("Initial button states loaded:", { btn1sts, btn2sts, btn3sts, btn4sts });
+  } catch (e) {
+    console.error("Error initializing button states:", e.message);
+  }
+};
 // middelwares
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -36,6 +61,10 @@ app.use(express.json());
 
 // post request start from here ......................
 
+app.post("/start", async(req, res) => {
+  await initializeButtonStates();
+  res.json({ button1:btn1sts, button2:btn2sts, button3:btn3sts, button4:btn4sts });
+});
 app.post('/mainpagetoken', async (req, res) => {
   const { usertoken } = req.body;
   console.log(usertoken)
@@ -46,7 +75,7 @@ app.post('/mainpagetoken', async (req, res) => {
       console.log("token is found")
       res.json({ message: "token is found" })
     }
-    else{
+    else {
       res.json({ message: "token is not found" })
     }
   }
@@ -60,6 +89,11 @@ app.post('/mainpagetoken', async (req, res) => {
 app.post("/mainpagedata", async (req, res) => {
   const { id, status } = req.body;
   console.log(id + " --- " + status);
+  await ButtonState.findOneAndUpdate(
+    { buttonName: id },
+    { state: status, timestamp: Date.now() },
+    { upsert: true, new: true }
+  );
   if (espSocket && espSocket.readyState === WebSocket.OPEN) {
     try {
       // Update button state only if ID is valid
@@ -74,17 +108,17 @@ app.post("/mainpagedata", async (req, res) => {
         console.log("button2 sts is ==>", btn2sts)
         espSocket.send(JSON.stringify({ button: id, status: btn2sts }));
         res.json({ reply: "working on your request", received: req.body });
-      }else if (id === "btn3") {
+      } else if (id === "btn3") {
         btn3sts = status
         console.log("button3 sts is ==>", btn3sts)
         espSocket.send(JSON.stringify({ button: id, status: btn3sts }));
         res.json({ reply: "working on your request", received: req.body });
-      }else if (id === "btn4") {
+      } else if (id === "btn4") {
         btn4sts = status
         console.log("button4 sts is ==>", btn4sts)
         espSocket.send(JSON.stringify({ button: id, status: btn4sts }));
         res.json({ reply: "working on your request", received: req.body });
-      }else {
+      } else {
         res.status(400).json({ error: "Invalid button ID" });
       }
     }
@@ -250,16 +284,16 @@ app.post("/esp_cpass", async (req, res) => {
   console.log("new password is ==>", password);
   if (espSocket && espSocket.readyState === WebSocket.OPEN) {
     try {
-      espSocket.send(JSON.stringify({ ssid:ssid, password: password }));
+      espSocket.send(JSON.stringify({ ssid: ssid, password: password }));
       res.json({ message: "esp pass word change request sent" })
     } catch (e) {
       console.log("error occer while sending data to esp", e.message);
       res.json({ message: "error occer while sending data to esp", error: e.message })
     }
   }
-  else{
+  else {
     console.log("esp is not connected");
-    res.json({message:"esp is not connected"});
+    res.json({ message: "esp is not connected" });
   }
 });
 // change passwort to data base
@@ -300,13 +334,16 @@ app.post("/cpass", async (req, res) => {
 // all post request end here.........................
 // websocket connection with esp............
 
-wss.on("connection", (ws, req) => {
+wss.on("connection", async (ws, req) => {
   const ip = req.socket.remoteAddress;
   console.log("ESP connected via WebSocket.ip is :", ip);
-  ws.send(JSON.stringify({ button: "all", status: 0 }));
-  espSocket = ws
-  // ende initial message 
-  ws.send(JSON.stringify({ message: "hello from server " }));
+  await initializeButtonStates();
+  // send initial button states to ESP
+  ws.send(JSON.stringify({ button: "btn1", status: btn1sts }));
+  ws.send(JSON.stringify({ button: "btn2", status: btn2sts }));
+  ws.send(JSON.stringify({ button: "btn3", status: btn3sts }));
+  ws.send(JSON.stringify({ button: "btn4", status: btn4sts }));
+  espSocket = ws;
   // hendel message from esp
   ws.on("message", (msg) => {
     console.log("Received from ESP:", msg.toString());

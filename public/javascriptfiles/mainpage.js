@@ -1,9 +1,26 @@
 console.log("pggram run success fully")
 
-window.addEventListener('DOMContentLoaded', function () {
+window.addEventListener('DOMContentLoaded', async function () {
    const token = window.localStorage.getItem('token');
    if (!token) {
       window.location.href = '/';
+   }
+   else {
+      const response = await fetch('/start', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const result = await response.json();
+      console.log('Server replied:', result);
+      if (result.button1 == 1) {
+         document.getElementById('buttonid1').textContent = 'on';
+      }
+      if (result.button2 == 1) {
+         document.getElementById('buttonid2').textContent = 'on';
+      }
+      if (result.button3 == 1) {
+         document.getElementById('buttonid3').textContent = 'on';
+      }
+      if (result.button4 == 1) {
+         document.getElementById('buttonid4').textContent = 'on';
+      }
    }
 })
 
