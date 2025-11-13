@@ -22,7 +22,8 @@ let espSocket = null;
 const loginAttempts = {};
 
 // connect to mongo db data base with user info
-mongoose.connect("mongodb+srv://neelmarik26_db_user:2hcODrH1Ratq8b0K@iothomeautomation.nayri10.mongodb.net/?retryWrites=true&w=majority&appName=IotHomeAutomation")
+
+mongoose.connect(process.env.mongodb_url)
   // local host
   // mongoose.connect("mongodb://localhost:27017/")
   .then(() => console.log('MongoDB connected successfully'))
@@ -247,8 +248,7 @@ app.post("/userdeleatbyid", async (req, res) => {
 
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
 const apiKey = defaultClient.authentications["api-key"];// my apui kyyy 
-apiKey.apiKey = "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"; // your Brevo key
-
+apiKey.apiKey = process.env.e_mail_api; // your Brevo key
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 
@@ -320,7 +320,7 @@ app.post("/cpass", async (req, res) => {
       <p>keep connect with us </p>
       <p>welcome</p>
       <br>
-      <p>– The IoT Team</p>
+      <p>-The IoT Team</p>
     `,
       };
       await apiInstance.sendTransacEmail(sendSmtpEmail);
