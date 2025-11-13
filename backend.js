@@ -350,7 +350,7 @@ wss.on("connection", async (ws, req) => {
   });
   // close connection 
   ws.on("close", () => {
-    console.log("Client disconnected")
+    console.log("Client disconnected,reconnect when esp is on");
     espSocket = null;
   });
 });
