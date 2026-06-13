@@ -13,7 +13,7 @@ const app = express()
 const FIREBASE_DATABASE_URL = (process.env.FIREBASE_DATABASE_URL || "home-automation-77e6c-default-rtdb.firebaseio.com")
   .replace(/^https?:\/\//, "")
   .replace(/\/$/, "");
-const FIREBASE_DATABASE_SECRET = process.env.FIREBASE_DATABASE_SECRET || "3hHetqM0wMhHRfCJsbwokl1Neo2INtsxbs7Br6Hc";
+const FIREBASE_DATABASE_SECRET = process.env.FIREBASE_DATABASE_SECRET;
 // gloubal variable  write here ..................
 let btn1sts = 0;
 let btn2sts = 0;
