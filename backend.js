@@ -10,7 +10,7 @@ const ButtonState = require("./models/LAST5BUTTON.js");
 const SibApiV3Sdk = require("sib-api-v3-sdk");
 
 const app = express()
-const FIREBASE_DATABASE_URL = (process.env.FIREBASE_DATABASE_URL || "home-automation-77e6c-default-rtdb.firebaseio.com")
+const FIREBASE_DATABASE_URL = (process.env.FIREBASE_DATABASE_URL || "https://home-automation-77e6c-default-rtdb.firebaseio.com")
   .replace(/^https?:\/\//, "")
   .replace(/\/$/, "");
 const FIREBASE_DATABASE_SECRET = process.env.FIREBASE_DATABASE_SECRET;
@@ -43,16 +43,19 @@ function applyButtonSnapshot(snapshot = {}) {
 
 function firebaseRequest(method, firebasePath, payload) {
   const normalizedPath = !firebasePath || firebasePath === "/"
-    ? ""
+    ? "/"
     : firebasePath.startsWith("/")
       ? firebasePath
       : `/${firebasePath}`;
 
   const requestBody = payload === undefined ? null : JSON.stringify(payload);
+  const authQuery = FIREBASE_DATABASE_SECRET
+    ? `?auth=${encodeURIComponent(FIREBASE_DATABASE_SECRET)}`
+    : "";
   const options = {
     method,
     hostname: FIREBASE_DATABASE_URL,
-    path: `${normalizedPath}.json?auth=${encodeURIComponent(FIREBASE_DATABASE_SECRET)}`,
+    path: `${normalizedPath}.json${authQuery}`,
     headers: {
       "Content-Type": "application/json",
     },
@@ -103,7 +106,7 @@ async function readFirebaseButtonState() {
 }
 
 async function syncButtonStatesToFirebase() {
-  await firebaseRequest("PATCH", "/", {
+  await firebaseRequest("PUT", "/", {
     btn1: btn1sts,
     btn2: btn2sts,
     btn3: btn3sts,
@@ -114,14 +117,6 @@ async function syncButtonStatesToFirebase() {
 async function syncSingleButtonToFirebase(id, status) {
   const payload = { [id]: normalizeButtonState(status) };
   await firebaseRequest("PATCH", "/", payload);
-}
-
-async function syncWiFiCredentialsToFirebase(ssid, password) {
-  await firebaseRequest("PATCH", "/", {
-    wifi_ssid: ssid,
-    wifi_password: password,
-    wifi_version: Math.floor(Date.now() / 1000),
-  });
 }
 
 // connect to mongo db data base with user info
@@ -267,8 +262,8 @@ app.post("/mainpagedata", async (req, res) => {
       return res.status(400).json({ error: "Invalid button ID" });
     }
 
-    if (id === "all") {
-      await firebaseRequest("PATCH", "/", {
+  if (id === "all") {
+      await firebaseRequest("PUT", "/", {
         btn1: normalizedStatus,
         btn2: normalizedStatus,
         btn3: normalizedStatus,
@@ -436,16 +431,9 @@ app.post("/sendmail", async (req, res) => {
 });
 // chenge pass word to esp wifi 
 app.post("/esp_cpass", async (req, res) => {
-  const { ssid, password } = req.body;
-  console.log("new ssid is ==>", ssid);
-  console.log("new password is ==>", password);
-  try {
-    await syncWiFiCredentialsToFirebase(ssid, password);
-    res.json({ message: "esp pass word change request sent" });
-  } catch (e) {
-    console.log("error occer while saving wifi settings to firebase", e.message);
-    res.status(500).json({ message: "error occer while sending data to esp", error: e.message });
-  }
+  res.json({
+    message: "Wi-Fi credential updates are disabled in backend-only Firebase mode.",
+  });
 });
 // change passwort to data base
 app.post("/cpass", async (req, res) => {
