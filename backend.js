@@ -4,22 +4,125 @@ const mongoose = require("mongoose");
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const path = require('path');
+const https = require("https");
 const user = require('./models/userdataschem.js')
 const ButtonState = require("./models/LAST5BUTTON.js");
 const SibApiV3Sdk = require("sib-api-v3-sdk");
-const WebSocket = require("ws");
-const http = require("http");
 
 const app = express()
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const FIREBASE_DATABASE_URL = (process.env.FIREBASE_DATABASE_URL || "home-automation-77e6c-default-rtdb.firebaseio.com")
+  .replace(/^https?:\/\//, "")
+  .replace(/\/$/, "");
+const FIREBASE_DATABASE_SECRET = process.env.FIREBASE_DATABASE_SECRET || "3hHetqM0wMhHRfCJsbwokl1Neo2INtsxbs7Br6Hc";
 // gloubal variable  write here ..................
 let btn1sts = 0;
 let btn2sts = 0;
 let btn3sts = 0;
 let btn4sts = 0;
-let espSocket = null;
 const loginAttempts = {};
+
+function normalizeButtonState(value) {
+  return value === 1 || value === "1" || value === true ? 1 : 0;
+}
+
+function currentButtonSnapshot() {
+  return {
+    button1: btn1sts,
+    button2: btn2sts,
+    button3: btn3sts,
+    button4: btn4sts,
+  };
+}
+
+function applyButtonSnapshot(snapshot = {}) {
+  btn1sts = normalizeButtonState(snapshot.btn1 ?? snapshot.button1 ?? 0);
+  btn2sts = normalizeButtonState(snapshot.btn2 ?? snapshot.button2 ?? 0);
+  btn3sts = normalizeButtonState(snapshot.btn3 ?? snapshot.button3 ?? 0);
+  btn4sts = normalizeButtonState(snapshot.btn4 ?? snapshot.button4 ?? 0);
+}
+
+function firebaseRequest(method, firebasePath, payload) {
+  const normalizedPath = !firebasePath || firebasePath === "/"
+    ? ""
+    : firebasePath.startsWith("/")
+      ? firebasePath
+      : `/${firebasePath}`;
+
+  const requestBody = payload === undefined ? null : JSON.stringify(payload);
+  const options = {
+    method,
+    hostname: FIREBASE_DATABASE_URL,
+    path: `${normalizedPath}.json?auth=${encodeURIComponent(FIREBASE_DATABASE_SECRET)}`,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
+  if (requestBody) {
+    options.headers["Content-Length"] = Buffer.byteLength(requestBody);
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        if (res.statusCode && res.statusCode >= 400) {
+          return reject(new Error(`Firebase request failed (${res.statusCode}): ${data}`));
+        }
+        if (!data) {
+          return resolve(null);
+        }
+        try {
+          resolve(JSON.parse(data));
+        } catch (error) {
+          resolve(data);
+        }
+      });
+    });
+
+    req.on("error", reject);
+    if (requestBody) {
+      req.write(requestBody);
+    }
+    req.end();
+  });
+}
+
+async function readFirebaseButtonState() {
+  const snapshot = await firebaseRequest("GET", "/");
+  return {
+    btn1: normalizeButtonState(snapshot?.btn1),
+    btn2: normalizeButtonState(snapshot?.btn2),
+    btn3: normalizeButtonState(snapshot?.btn3),
+    btn4: normalizeButtonState(snapshot?.btn4),
+  };
+}
+
+async function syncButtonStatesToFirebase() {
+  await firebaseRequest("PATCH", "/", {
+    btn1: btn1sts,
+    btn2: btn2sts,
+    btn3: btn3sts,
+    btn4: btn4sts,
+  });
+}
+
+async function syncSingleButtonToFirebase(id, status) {
+  const payload = { [id]: normalizeButtonState(status) };
+  await firebaseRequest("PATCH", "/", payload);
+}
+
+async function syncWiFiCredentialsToFirebase(ssid, password) {
+  await firebaseRequest("PATCH", "/", {
+    wifi_ssid: ssid,
+    wifi_password: password,
+    wifi_version: Math.floor(Date.now() / 1000),
+  });
+}
 
 // connect to mongo db data base with user info
 
@@ -32,22 +135,25 @@ mongoose.connect(process.env.mongodb_url)
 async function initializeButtonStates() {
   try {
     const buttons = await ButtonState.find({});
+    const snapshot = {};
     buttons.forEach(button => {
       switch (button.buttonName) {
         case 'btn1':
-          btn1sts = parseInt(button.state);
+          snapshot.btn1 = parseInt(button.state);
           break;
         case 'btn2':
-          btn2sts = parseInt(button.state);
+          snapshot.btn2 = parseInt(button.state);
           break;
         case 'btn3':
-          btn3sts = parseInt(button.state);
+          snapshot.btn3 = parseInt(button.state);
           break;
         case 'btn4':
-          btn4sts = parseInt(button.state);
+          snapshot.btn4 = parseInt(button.state);
           break;
       }
-    })
+    });
+    applyButtonSnapshot(snapshot);
+    await syncButtonStatesToFirebase();
     console.log("Initial button states loaded:", { btn1sts, btn2sts, btn3sts, btn4sts });
   } catch (e) {
     console.error("Error initializing button states:", e.message);
@@ -63,8 +169,14 @@ app.use(express.json());
 // post request start from here ......................
 
 app.post("/start", async(req, res) => {
-  await initializeButtonStates();
-  res.json({ button1:btn1sts, button2:btn2sts, button3:btn3sts, button4:btn4sts });
+  try {
+    const firebaseStates = await readFirebaseButtonState();
+    applyButtonSnapshot(firebaseStates);
+  } catch (error) {
+    console.warn("Firebase state read failed, falling back to MongoDB:", error.message);
+    await initializeButtonStates();
+  }
+  res.json(currentButtonSnapshot());
 });
 app.post('/mainpagetoken', async (req, res) => {
   const { usertoken } = req.body;
@@ -90,42 +202,87 @@ app.post('/mainpagetoken', async (req, res) => {
 app.post("/mainpagedata", async (req, res) => {
   const { id, status } = req.body;
   console.log(id + " --- " + status);
-  await ButtonState.findOneAndUpdate(
-    { buttonName: id },
-    { state: status, timestamp: Date.now() },
-    { upsert: true, new: true }
-  );
-  if (espSocket && espSocket.readyState === WebSocket.OPEN) {
-    try {
-      // Update button state only if ID is valid
-      if (id === "btn1") {
-        btn1sts = status
-        console.log("button1 sts is ==>", btn1sts)
-        espSocket.send(JSON.stringify({ button: id, status: btn1sts }));
-        res.json({ reply: "working on your request", received: req.body });
-      }
-      else if (id === "btn2") {
-        btn2sts = status
-        console.log("button2 sts is ==>", btn2sts)
-        espSocket.send(JSON.stringify({ button: id, status: btn2sts }));
-        res.json({ reply: "working on your request", received: req.body });
-      } else if (id === "btn3") {
-        btn3sts = status
-        console.log("button3 sts is ==>", btn3sts)
-        espSocket.send(JSON.stringify({ button: id, status: btn3sts }));
-        res.json({ reply: "working on your request", received: req.body });
-      } else if (id === "btn4") {
-        btn4sts = status
-        console.log("button4 sts is ==>", btn4sts)
-        espSocket.send(JSON.stringify({ button: id, status: btn4sts }));
-        res.json({ reply: "working on your request", received: req.body });
-      } else {
-        res.status(400).json({ error: "Invalid button ID" });
-      }
+  const normalizedStatus = normalizeButtonState(status);
+
+  try {
+    if (id === "btn1") {
+      await ButtonState.findOneAndUpdate(
+        { buttonName: id },
+        { state: normalizedStatus, timestamp: Date.now() },
+        { upsert: true, new: true }
+      );
+      btn1sts = normalizedStatus;
     }
-    catch (e) {
-      res.json({ reply: "error occer ", err: e.message })
+    else if (id === "btn2") {
+      await ButtonState.findOneAndUpdate(
+        { buttonName: id },
+        { state: normalizedStatus, timestamp: Date.now() },
+        { upsert: true, new: true }
+      );
+      btn2sts = normalizedStatus;
     }
+    else if (id === "btn3") {
+      await ButtonState.findOneAndUpdate(
+        { buttonName: id },
+        { state: normalizedStatus, timestamp: Date.now() },
+        { upsert: true, new: true }
+      );
+      btn3sts = normalizedStatus;
+    }
+    else if (id === "btn4") {
+      await ButtonState.findOneAndUpdate(
+        { buttonName: id },
+        { state: normalizedStatus, timestamp: Date.now() },
+        { upsert: true, new: true }
+      );
+      btn4sts = normalizedStatus;
+    } else if (id === "all") {
+      await Promise.all([
+        ButtonState.findOneAndUpdate(
+          { buttonName: "btn1" },
+          { state: normalizedStatus, timestamp: Date.now() },
+          { upsert: true, new: true }
+        ),
+        ButtonState.findOneAndUpdate(
+          { buttonName: "btn2" },
+          { state: normalizedStatus, timestamp: Date.now() },
+          { upsert: true, new: true }
+        ),
+        ButtonState.findOneAndUpdate(
+          { buttonName: "btn3" },
+          { state: normalizedStatus, timestamp: Date.now() },
+          { upsert: true, new: true }
+        ),
+        ButtonState.findOneAndUpdate(
+          { buttonName: "btn4" },
+          { state: normalizedStatus, timestamp: Date.now() },
+          { upsert: true, new: true }
+        ),
+      ]);
+      btn1sts = normalizedStatus;
+      btn2sts = normalizedStatus;
+      btn3sts = normalizedStatus;
+      btn4sts = normalizedStatus;
+    } else {
+      return res.status(400).json({ error: "Invalid button ID" });
+    }
+
+    if (id === "all") {
+      await firebaseRequest("PATCH", "/", {
+        btn1: normalizedStatus,
+        btn2: normalizedStatus,
+        btn3: normalizedStatus,
+        btn4: normalizedStatus,
+        all: normalizedStatus,
+      });
+    } else {
+      await syncSingleButtonToFirebase(id, normalizedStatus);
+    }
+
+    res.json({ reply: "working on your request", received: req.body });
+  }
+  catch (e) {
+    res.status(500).json({ reply: "error occer ", err: e.message })
   }
 });
 
@@ -282,18 +439,12 @@ app.post("/esp_cpass", async (req, res) => {
   const { ssid, password } = req.body;
   console.log("new ssid is ==>", ssid);
   console.log("new password is ==>", password);
-  if (espSocket && espSocket.readyState === WebSocket.OPEN) {
-    try {
-      espSocket.send(JSON.stringify({ ssid: ssid, password: password }));
-      res.json({ message: "esp pass word change request sent" })
-    } catch (e) {
-      console.log("error occer while sending data to esp", e.message);
-      res.json({ message: "error occer while sending data to esp", error: e.message })
-    }
-  }
-  else {
-    console.log("esp is not connected");
-    res.json({ message: "esp is not connected" });
+  try {
+    await syncWiFiCredentialsToFirebase(ssid, password);
+    res.json({ message: "esp pass word change request sent" });
+  } catch (e) {
+    console.log("error occer while saving wifi settings to firebase", e.message);
+    res.status(500).json({ message: "error occer while sending data to esp", error: e.message });
   }
 });
 // change passwort to data base
@@ -332,30 +483,6 @@ app.post("/cpass", async (req, res) => {
   }
 })
 // all post request end here.........................
-// websocket connection with esp............
-
-wss.on("connection", async (ws, req) => {
-  const ip = req.socket.remoteAddress;
-  console.log("ESP connected via WebSocket.ip is :", ip);
-  await initializeButtonStates();
-  // send initial button states to ESP
-  ws.send(JSON.stringify({ button: "btn1", status: btn1sts }));
-  ws.send(JSON.stringify({ button: "btn2", status: btn2sts }));
-  ws.send(JSON.stringify({ button: "btn3", status: btn3sts }));
-  ws.send(JSON.stringify({ button: "btn4", status: btn4sts }));
-  espSocket = ws;
-  // hendel message from esp
-  ws.on("message", (msg) => {
-    console.log("Received from ESP:", msg.toString());
-  });
-  // close connection 
-  ws.on("close", () => {
-    console.log("Client disconnected,reconnect when esp is on");
-    espSocket = null;
-  });
-});
-
-// web socket connection end here............
 // all get request is here.............................
 app.get("/supage", (req, res) => {
   try {
@@ -404,7 +531,7 @@ async function checkPassword(plainPassword, hashedPassword) {
 
 // starting the server
 const port = process.env.PORT || 10000;
-server.listen(port, () => {
+app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
   console.log(`Signup endpoint: POST http://localhost:${port}/`);
 })
