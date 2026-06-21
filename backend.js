@@ -403,7 +403,7 @@ async function checkPassword(plainPassword, hashedPassword) {
 }
 
 // starting the server
-const port = process.env.PORT || 10000;
+const port = process.env.PORT || 3000;
 server.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
   console.log(`Signup endpoint: POST http://localhost:${port}/`);
