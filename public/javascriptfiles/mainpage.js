@@ -44,9 +44,9 @@ window.addEventListener('DOMContentLoaded', async function () {
     }
 
     try {
-        const response = await fetch('/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+        const response = await fetch('/user/button-status', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json',Authorization:`Bearer ${token}` }
         });
         const result = await response.json();
         console.log('Server replied:', result);

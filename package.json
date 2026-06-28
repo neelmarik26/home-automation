@@ -2,11 +2,11 @@
   "name": "home-automation",
   "version": "1.0.0",
   "description": "iot home automation",
-  "main": "backend.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node backend.js",
-    "dev": "nodemon backend.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",

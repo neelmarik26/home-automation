@@ -27,46 +27,42 @@ function callsinguppage() {
     window.location.href = '/supage';
 }
 
-async function callmainpage(token) {
-    window.localStorage.setItem("token", token)
+async function callmainpage(result) {
+    window.localStorage.setItem("token",result.token)
     window.location.href = '/mainpage';
 }
-document.querySelector('.btn').addEventListener('click', (event) => {
+
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+document.querySelector('#login').addEventListener('click', (event) => {
     event.preventDefault();
     const emailinput = document.querySelector('#emailinput');
     const passwordinput = document.querySelector('#passwordinput');
     const email = emailinput.value;
     const password = passwordinput.value;
-    // console.log(email, password);
-    senddata({ email, password })
+    if(!email || !password || !isValidEmail(email) ){
+        document.getElementById('mxbox').innerHTML="Email or Password is wrong!"
+    }else{
+        senddata({ email, password })
+    }
 });
 async function senddata(data) {
     try {
-        const response = await fetch('/olduser', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        const response = await fetch('/user/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         const result = await response.json();
-        console.log('Server replied:', result);
-        if (result.pass === "match") {
+        console.log('Server replied:', result,response.status);
+        if (response.status === 200) {
             document.querySelector('.messagebox').innerHTML = `<div> welcome back </div>`
             setTimeout(() => {
-                callmainpage(result.token);
+                callmainpage(result);
             }, 1500)
         }
-        else if (result.reply === "no user found") {
-            document.querySelector('.messagebox').innerHTML = `<div>no user found</div>`
+        if (response.status !==200 ) {
+            document.querySelector('.messagebox').innerHTML = `<div>${result.message}</div>`
         }
-        else if (result.pass === "notmatch") {
-            document.querySelector('.messagebox').innerHTML = `<div>${result.message} ${result.reply}</div>`
-        }
-        else if (result.message === "locked") {
-            document.querySelector('.messagebox').innerHTML = `<div>${result.reply}</div>`
-            if (result.remaining) {
-                startCountdown(result.remaining);
-            }
-            else {
-                console.log(result);
-                document.querySelector('.messagebox').innerHTML = `<div>sorry something wrong .try again some time leat.</div>`
-            }
-        }
+       
     } catch (e) {
         console.log(e.message)
     }

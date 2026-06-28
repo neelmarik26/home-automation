@@ -2,7 +2,12 @@ const mongoose = require("mongoose");
 
 const buttonSchema = new mongoose.Schema({
   buttonName: String,
-  state: String,       // "ON" / "OFF" or whatever you send
+  state: String,
+  type: {
+    type: String,
+    required: true,
+    default: "USER"
+  },
   timestamp: { type: Date, default: Date.now },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
