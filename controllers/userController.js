@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/userdataschem');
 const ButtonState = require('../models/LAST5BUTTON');
 const { sendOtpEmail } = require('../helpers/emailhelper');
+const { sendButtonUpdateToUser } = require('../helpers/websocketHelper');
 
 function isStrongPassword(password) {
   return (
@@ -254,12 +255,15 @@ exports.updateButtonStatusByUser = async (req, res) => {
       {
         state: String(status),
         timestamp: Date.now(),
-      }
+      },
+      { new: true }
     );
 
     if (!updatedButton) {
       return res.status(404).json({ message: 'button not found' });
     }
+
+    sendButtonUpdateToUser(userId, updatedButton);
 
     return res.json({
       message: 'button status updated successfully',

@@ -40,6 +40,86 @@ function bindButtonRecord(cardEl, buttonEl, buttonRecord) {
     cardEl.dataset.userId = buttonRecord.userId;
 }
 
+function applyButtonRecordToCard(buttonRecord, index) {
+    if (!buttonRecord) return;
+
+    const card = document.getElementById('card' + index);
+    const button = document.getElementById('buttonid' + index);
+
+    bindButtonRecord(card, button, buttonRecord);
+    setCardState(card, button, buttonRecord.state == 1);
+}
+
+function syncAllButtons(buttons) {
+    const list = Array.isArray(buttons) ? buttons : [];
+
+    if (list.length !== 4) {
+        return;
+    }
+
+    applyButtonRecordToCard(list[0], 1);
+    applyButtonRecordToCard(list[1], 2);
+    applyButtonRecordToCard(list[2], 3);
+    applyButtonRecordToCard(list[3], 4);
+
+    const activeCount = list.filter((button) => button?.state == 1).length;
+    const devicesOnCount = document.getElementById('devicesOnCount');
+    if (devicesOnCount) {
+        devicesOnCount.textContent = activeCount + (activeCount === 1 ? ' device active' : ' devices active');
+    }
+}
+
+function syncSingleButton(buttonRecord) {
+    if (!buttonRecord?._id) return;
+
+    const buttonEl = document.querySelector(`[data-button-id="${buttonRecord._id}"]`) || document.getElementById(buttonRecord._id);
+    const cardEl = buttonEl?.closest('.card') || document.querySelector(`[data-button-id="${buttonRecord._id}"]`)?.closest('.card');
+
+    if (!buttonEl || !cardEl) {
+        return;
+    }
+
+    setCardState(cardEl, buttonEl, buttonRecord.state == 1);
+}
+
+function connectUserSocket(userId) {
+    if (!userId || typeof WebSocket === 'undefined') {
+        return null;
+    }
+
+    const socketProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${socketProtocol}//${window.location.host}`);
+
+    socket.addEventListener('open', function () {
+        socket.send(JSON.stringify({
+            type: 'identify',
+            userId,
+        }));
+    });
+
+    socket.addEventListener('message', function (event) {
+        try {
+            const payload = JSON.parse(event.data);
+
+            if (payload.type === 'button-status') {
+                syncAllButtons(payload.buttons);
+            }
+
+            if (payload.type === 'button-update') {
+                syncSingleButton(payload.button);
+            }
+        } catch (error) {
+            console.error('WebSocket message parse failed:', error);
+        }
+    });
+
+    socket.addEventListener('error', function (error) {
+        console.error('WebSocket error:', error);
+    });
+
+    return socket;
+}
+
 /* ─────────────────────────────────────────────
    On load: check auth token, then fetch
    current device states from the server
@@ -52,6 +132,7 @@ window.addEventListener('DOMContentLoaded', async function () {
     }
     const user=JSON.parse(window.localStorage.getItem('user'));
     document.getElementById("user-name").innerHTML=`welcome ${user.name}`
+    window.userSocket = connectUserSocket(user?.id);
 
     try {
         const response = await fetch('/user/button-status', {
@@ -59,34 +140,7 @@ window.addEventListener('DOMContentLoaded', async function () {
             headers: { 'Content-Type': 'application/json',Authorization:`Bearer ${token}` }
         });
         const result = await response.json();
-        const buttons = Array.isArray(result.buttons) ? result.buttons : [];
-
-        if (buttons.length === 4) {
-            const card1 = document.getElementById('card1');
-            const card2 = document.getElementById('card2');
-            const card3 = document.getElementById('card3');
-            const card4 = document.getElementById('card4');
-            const button1 = document.getElementById('buttonid1');
-            const button2 = document.getElementById('buttonid2');
-            const button3 = document.getElementById('buttonid3');
-            const button4 = document.getElementById('buttonid4');
-
-            bindButtonRecord(card1, button1, buttons[0]);
-            bindButtonRecord(card2, button2, buttons[1]);
-            bindButtonRecord(card3, button3, buttons[2]);
-            bindButtonRecord(card4, button4, buttons[3]);
-
-            setCardState(card1, button1, buttons[0]?.state == 1);
-            setCardState(card2, button2, buttons[1]?.state == 1);
-            setCardState(card3, button3, buttons[2]?.state == 1);
-            setCardState(card4, button4, buttons[3]?.state == 1);
-
-            const activeCount = buttons.filter((button) => button?.state == 1).length;
-            const devicesOnCount = document.getElementById('devicesOnCount');
-            if (devicesOnCount) {
-                devicesOnCount.textContent = activeCount + (activeCount === 1 ? ' device active' : ' devices active');
-            }
-        }
+        syncAllButtons(Array.isArray(result.buttons) ? result.buttons : []);
         
     } catch (err) {
         console.error('Failed to fetch initial state:', err);
@@ -144,7 +198,6 @@ async function verifytoken() {
    Works for all 4 devices — pass card number
 ───────────────────────────────────────────────*/
 async function handleCardToggle(cardNum) {
-    console.log('card 1111111',cardNum)
     const card   = document.getElementById('card' + cardNum);
     const button = card?.querySelector('.stylish-btn') || document.getElementById('buttonid' + cardNum);
     const buttonId = card?.dataset.buttonId || button?.dataset.buttonId || button?.id;
