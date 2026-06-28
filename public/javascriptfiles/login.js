@@ -29,6 +29,7 @@ function callsinguppage() {
 
 async function callmainpage(result) {
     window.localStorage.setItem("token",result.token)
+    window.localStorage.setItem("user",JSON.stringify(result.user))
     window.location.href = '/mainpage';
 }
 

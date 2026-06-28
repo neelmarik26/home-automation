@@ -234,3 +234,38 @@ exports.getButtonStatusByUser = async (req, res) => {
     return res.status(500).json({ message: 'failed to fetch button status', error: error.message });
   }
 };
+
+exports.updateButtonStatusByUser = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const buttonId = req.params.buttonId || req.body.buttonId;
+    const { status } = req.body;
+
+    if (!buttonId) {
+      return res.status(400).json({ message: 'button id is required' });
+    }
+
+    const updatedButton = await ButtonState.findOneAndUpdate(
+      {
+        _id: buttonId,
+        userId,
+        type: 'USER',
+      },
+      {
+        state: String(status),
+        timestamp: Date.now(),
+      }
+    );
+
+    if (!updatedButton) {
+      return res.status(404).json({ message: 'button not found' });
+    }
+
+    return res.json({
+      message: 'button status updated successfully',
+      button: updatedButton,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'failed to update button status', error: error.message });
+  }
+};

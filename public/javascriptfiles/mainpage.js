@@ -32,6 +32,14 @@ function setCardState(cardEl, buttonEl, isOn) {
     updateDeviceCount();
 }
 
+function bindButtonRecord(cardEl, buttonEl, buttonRecord) {
+    if (!cardEl || !buttonEl || !buttonRecord) return;
+    buttonEl.dataset.buttonId = buttonRecord._id;
+    buttonEl.dataset.userId = buttonRecord.userId;
+    cardEl.dataset.buttonId = buttonRecord._id;
+    cardEl.dataset.userId = buttonRecord.userId;
+}
+
 /* ─────────────────────────────────────────────
    On load: check auth token, then fetch
    current device states from the server
@@ -42,6 +50,8 @@ window.addEventListener('DOMContentLoaded', async function () {
         window.location.href = '/';
         return;
     }
+    const user=JSON.parse(window.localStorage.getItem('user'));
+    document.getElementById("user-name").innerHTML=`welcome ${user.name}`
 
     try {
         const response = await fetch('/user/button-status', {
@@ -49,12 +59,35 @@ window.addEventListener('DOMContentLoaded', async function () {
             headers: { 'Content-Type': 'application/json',Authorization:`Bearer ${token}` }
         });
         const result = await response.json();
-        console.log('Server replied:', result);
+        const buttons = Array.isArray(result.buttons) ? result.buttons : [];
 
-        if (result.button1 == 1) setCardState(document.getElementById('card1'), document.getElementById('buttonid1'), true);
-        if (result.button2 == 1) setCardState(document.getElementById('card2'), document.getElementById('buttonid2'), true);
-        if (result.button3 == 1) setCardState(document.getElementById('card3'), document.getElementById('buttonid3'), true);
-        if (result.button4 == 1) setCardState(document.getElementById('card4'), document.getElementById('buttonid4'), true);
+        if (buttons.length === 4) {
+            const card1 = document.getElementById('card1');
+            const card2 = document.getElementById('card2');
+            const card3 = document.getElementById('card3');
+            const card4 = document.getElementById('card4');
+            const button1 = document.getElementById('buttonid1');
+            const button2 = document.getElementById('buttonid2');
+            const button3 = document.getElementById('buttonid3');
+            const button4 = document.getElementById('buttonid4');
+
+            bindButtonRecord(card1, button1, buttons[0]);
+            bindButtonRecord(card2, button2, buttons[1]);
+            bindButtonRecord(card3, button3, buttons[2]);
+            bindButtonRecord(card4, button4, buttons[3]);
+
+            setCardState(card1, button1, buttons[0]?.state == 1);
+            setCardState(card2, button2, buttons[1]?.state == 1);
+            setCardState(card3, button3, buttons[2]?.state == 1);
+            setCardState(card4, button4, buttons[3]?.state == 1);
+
+            const activeCount = buttons.filter((button) => button?.state == 1).length;
+            const devicesOnCount = document.getElementById('devicesOnCount');
+            if (devicesOnCount) {
+                devicesOnCount.textContent = activeCount + (activeCount === 1 ? ' device active' : ' devices active');
+            }
+        }
+        
     } catch (err) {
         console.error('Failed to fetch initial state:', err);
     }
@@ -65,9 +98,18 @@ window.addEventListener('DOMContentLoaded', async function () {
 ───────────────────────────────────────────────*/
 async function senddatatobackend(data) {
     try {
-        const response = await fetch('/mainpagedata', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        if (!data.buttonId) {
+            throw new Error('buttonId is required');
+        }
+         const token = window.localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/';
+            return;
+        }
+
+        const response = await fetch(`/user/button-status/${data.buttonId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json',Authorization:`Bearer ${token}`  },
             body: JSON.stringify(data)
         });
         const result = await response.json();
@@ -102,8 +144,15 @@ async function verifytoken() {
    Works for all 4 devices — pass card number
 ───────────────────────────────────────────────*/
 async function handleCardToggle(cardNum) {
+    console.log('card 1111111',cardNum)
     const card   = document.getElementById('card' + cardNum);
-    const button = document.getElementById('buttonid' + cardNum);
+    const button = card?.querySelector('.stylish-btn') || document.getElementById('buttonid' + cardNum);
+    const buttonId = card?.dataset.buttonId || button?.dataset.buttonId || button?.id;
+
+    if (!card || !button) {
+        console.error('Missing card or button element for card', cardNum);
+        return;
+    }
     const isNowOn = button.textContent === 'off';
 
     // 1. Update UI instantly — no waiting
@@ -111,14 +160,7 @@ async function handleCardToggle(cardNum) {
 
     // 2. Verify + sync in background
     try {
-        const message = await verifytoken();
-        if (message === 'token is not found') {
-            setCardState(card, button, !isNowOn); // roll back
-            window.localStorage.removeItem('token');
-            window.location.href = '/';
-            return;
-        }
-        await senddatatobackend({ id: 'btn' + cardNum, status: isNowOn ? 1 : 0 });
+        await senddatatobackend({ buttonId, status: isNowOn ? 1 : 0 });
     } catch (err) {
         setCardState(card, button, !isNowOn); // roll back on network error
         console.error('Sync failed, reverting:', err);
