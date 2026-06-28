@@ -9,7 +9,7 @@ const WebSocket = require('ws');
 
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const { addSocket, removeSocket, sendAllButtonsToUser } = require('./helpers/websocketHelper');
+const { addSocket, clearEspSocket, removeSocket, sendAllButtonsToUser, setEspSocket } = require('./helpers/websocketHelper');
 
 const app = express();
 const server = http.createServer(app);
@@ -43,22 +43,49 @@ wss.on('connection', (ws) => {
 
   ws.on('message', async (message) => {
     try {
-      const payload = JSON.parse(message.toString());
+      const rawMessage = message.toString();
+      const payload = JSON.parse(rawMessage);
+      console.log('payload',payload)
 
       if (payload?.type === 'identify' && payload.userId) {
         addSocket(payload.userId, ws);
         await sendAllButtonsToUser(payload.userId);
+        return;
+      }
+
+      if (payload?.type === 'esp-identify' && payload.deviceId) {
+        setEspSocket(ws, payload.deviceId);
+        return;
+      }
+
+      if (payload?.type === 'esp-identify') {
+        setEspSocket(ws, 'esp32');
+        return;
+      }
+
+      if (payload?.type === 'esp-status' || payload?.device === 'esp32') {
+        setEspSocket(ws, payload.deviceId || payload.device || 'esp32');
+        return;
       }
     } catch (error) {
+      const rawMessage = message.toString();
+
+      if (rawMessage === 'Hello from ESP32!' || rawMessage === 'esp32') {
+        setEspSocket(ws, 'esp32');
+        return;
+      }
+
       console.log('WebSocket message error:', error.message);
     }
   });
 
   ws.on('close', () => {
+    clearEspSocket(ws);
     removeSocket(ws);
   });
 
   ws.on('error', () => {
+    clearEspSocket(ws);
     removeSocket(ws);
   });
 });

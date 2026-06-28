@@ -3,6 +3,9 @@ console.log("IoT Home Automation — script loaded");
 /* ─────────────────────────────────────────────
    Helper: update the "X devices active" counter
 ───────────────────────────────────────────────*/
+let userSocketConnected = false;
+let espSocketConnected = false;
+
 function updateDeviceCount() {
     const total = document.querySelectorAll('.card.on').length;
     const el = document.getElementById('devicesOnCount');
@@ -12,6 +15,14 @@ function updateDeviceCount() {
     } else {
         el.textContent = total + (total === 1 ? ' device active' : ' devices active');
     }
+}
+
+function updateSystemStatusText() {
+    const el = document.getElementById('systemStatusText');
+    if (!el) return;
+
+    const online = userSocketConnected && espSocketConnected;
+    el.textContent = online ? 'System online' : 'System offline';
 }
 
 /* ─────────────────────────────────────────────
@@ -91,15 +102,23 @@ function connectUserSocket(userId) {
     const socket = new WebSocket(`${socketProtocol}//${window.location.host}`);
 
     socket.addEventListener('open', function () {
+        userSocketConnected = true;
+        updateSystemStatusText();
         socket.send(JSON.stringify({
             type: 'identify',
             userId,
         }));
     });
 
+    socket.addEventListener('close', function () {
+        userSocketConnected = false;
+        updateSystemStatusText();
+    });
+
     socket.addEventListener('message', function (event) {
         try {
             const payload = JSON.parse(event.data);
+            console.log('payload',payload)
 
             if (payload.type === 'button-status') {
                 syncAllButtons(payload.buttons);
@@ -107,6 +126,11 @@ function connectUserSocket(userId) {
 
             if (payload.type === 'button-update') {
                 syncSingleButton(payload.button);
+            }
+
+            if (payload.type === 'system-status') {
+                espSocketConnected = !!payload.espSocketConnected;
+                updateSystemStatusText();
             }
         } catch (error) {
             console.error('WebSocket message parse failed:', error);
@@ -133,6 +157,7 @@ window.addEventListener('DOMContentLoaded', async function () {
     const user=JSON.parse(window.localStorage.getItem('user'));
     document.getElementById("user-name").innerHTML=`welcome ${user.name}`
     window.userSocket = connectUserSocket(user?.id);
+    updateSystemStatusText();
 
     try {
         const response = await fetch('/user/button-status', {
