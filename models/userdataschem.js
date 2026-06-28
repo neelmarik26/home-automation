@@ -24,7 +24,12 @@ const userdataschem = new mongoose.Schema({
             },
             message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
         }
-    }
+    },
+     type: {
+    type: String,
+    required: true,
+    default: "USER", // Optional default value
+  },
 },{
     timestamps: true
 });
