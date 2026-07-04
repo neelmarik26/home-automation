@@ -36,6 +36,17 @@ const userdataschem = new mongoose.Schema({
         type: String,
         enum: ['ACTIVE', 'BLOCKED'],
         default: 'ACTIVE'
+    },
+    deviceId: {
+        type: String,
+        default: null,
+        unique: true,
+        sparse: true
+    },
+    deviceStatus: {
+        type: String,
+        enum: ['ONLINE', 'OFFLINE'],
+        default: 'OFFLINE'
     }
 },{
     timestamps: true

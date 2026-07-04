@@ -6,103 +6,131 @@ const mongoose = require('mongoose');
 const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
+const jwt = require('jsonwebtoken');
 
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const { addSocket, clearEspSocket, removeSocket, sendAllButtonsToUser, setEspSocket } = require('./helpers/websocketHelper');
+const { setupWebSocketServer } = require('./websocket/server');
+const { registerUser, removeUser, registerEspStatusListener, removeEspStatusListener } = require('./websocket/connectionManager');
 
 const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const server = http.createServer();
+
+// Mount Express after WebSocket server is set up
+// This prevents Express from intercepting WebSocket frames
+setupWebSocketServer(server);
+
+// WebSocket endpoint for frontend clients (receives ESP status updates)
+// Using noServer mode to handle upgrades manually
+const wssFrontend = new WebSocket.Server({ noServer: true });
+
+wssFrontend.on('connection', (ws, req) => {
+    // Extract token from query string - use url.parse for compatibility
+    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    const token = urlObj.searchParams.get('token');
+    console.log("token:", token);
+    console.log("req.url:", req.url);
+    if (!token) {
+        ws.close(1008, 'Token required');
+        return;
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.token);
+        const userId = decoded.id;
+
+        ws.userId = userId;
+        registerUser(userId, ws);
+        registerEspStatusListener(userId, ws);
+
+        // Send initial status
+        ws.send(JSON.stringify({ type: 'connected', userId }));
+
+        ws.on('close', () => {
+            removeUser(userId);
+            removeEspStatusListener(userId, ws);
+        });
+
+        ws.on('error', () => {
+            removeUser(userId);
+            removeEspStatusListener(userId, ws);
+        });
+    } catch (err) {
+        ws.close(1008, 'Invalid token');
+    }
+});
+
+// Manual upgrade handling to strip extensions
+server.on('upgrade', (request, socket, head) => {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+
+    if (url.pathname === '/ws-front') {
+        // Strip the sec-websocket-extensions header to prevent RSV1 issues
+        delete request.headers['sec-websocket-extensions'];
+
+        wssFrontend.handleUpgrade(request, socket, head, (ws) => {
+            wssFrontend.emit('connection', ws, request);
+        });
+    }
+});
+
+wssFrontend.on('connection', (ws, req) => {
+    // Extract token from query string - use url.parse for compatibility
+    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    const token = urlObj.searchParams.get('token');
+    console.log("token:", token);
+    console.log("req.url:", req.url);
+    if (!token) {
+        ws.close(1008, 'Token required');
+        return;
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.token);
+        const userId = decoded.id;
+
+        ws.userId = userId;
+        registerUser(userId, ws);
+        registerEspStatusListener(userId, ws);
+
+        // Send initial status
+        ws.send(JSON.stringify({ type: 'connected', userId }));
+
+        ws.on('close', () => {
+            removeUser(userId);
+            removeEspStatusListener(userId, ws);
+        });
+
+        ws.on('error', () => {
+            removeUser(userId);
+            removeEspStatusListener(userId, ws);
+        });
+    } catch (err) {
+        ws.close(1008, 'Invalid token');
+    }
+});
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Mount Express on the server AFTER WebSocket setup
+// This allows WebSocket to handle /ws and /ws-front, while Express handles everything else
+server.on('request', app);
+
 app.use('/user', userRoutes);
 app.use('/admin', adminRoutes);
 
 app.get('/', (req, res) => {
-    res.render('login.ejs') 
+    res.render('login.ejs')
 });
-app.get('/mainpage', (req, res) => { 
-  res.render('mainpage.ejs') 
+app.get('/mainpage', (req, res) => {
+  res.render('mainpage.ejs')
 });
 app.get("/supage", (req, res) => {
-   res.render('singuppage.ejs')  
+   res.render('singuppage.ejs')
 });
-
-wss.on('connection', (ws) => {
-  ws.isAlive = true;
-  ws.userId = null;
-
-  ws.on('pong', () => {
-    ws.isAlive = true;
-  });
-
-  ws.on('message', async (message) => {
-    try {
-      const rawMessage = message.toString();
-      const payload = JSON.parse(rawMessage);
-      console.log('payload',payload)
-
-      if (payload?.type === 'identify' && payload.userId) {
-        addSocket(payload.userId, ws);
-        await sendAllButtonsToUser(payload.userId);
-        return;
-      }
-
-      if (payload?.type === 'esp-identify' && payload.deviceId) {
-        setEspSocket(ws, payload.deviceId);
-        return;
-      }
-
-      if (payload?.type === 'esp-identify') {
-        setEspSocket(ws, 'esp32');
-        return;
-      }
-
-      if (payload?.type === 'esp-status' || payload?.device === 'esp32') {
-        setEspSocket(ws, payload.deviceId || payload.device || 'esp32');
-        return;
-      }
-    } catch (error) {
-      const rawMessage = message.toString();
-
-      if (rawMessage === 'Hello from ESP32!' || rawMessage === 'esp32') {
-        setEspSocket(ws, 'esp32');
-        return;
-      }
-
-      console.log('WebSocket message error:', error.message);
-    }
-  });
-
-  ws.on('close', () => {
-    clearEspSocket(ws);
-    removeSocket(ws);
-  });
-
-  ws.on('error', () => {
-    clearEspSocket(ws);
-    removeSocket(ws);
-  });
-});
-
-const heartbeatInterval = setInterval(() => {
-  wss.clients.forEach((ws) => {
-    if (ws.isAlive === false) {
-      removeSocket(ws);
-      return ws.terminate();
-    }
-
-    ws.isAlive = false;
-    ws.ping();
-  });
-}, 30000);
-
-wss.on('close', () => clearInterval(heartbeatInterval));
 
 const port = process.env.port || process.env.PORT || 3000;
 mongoose

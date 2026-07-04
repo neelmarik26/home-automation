@@ -1,11 +1,12 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const WebSocket = require('ws');
 
 const User = require('../models/userdataschem');
 const ButtonState = require('../models/LAST5BUTTON');
 const { sendOtpEmail } = require('../helpers/emailhelper');
-const { sendButtonUpdateToUser } = require('../helpers/websocketHelper');
+const { getEspWebSocket } = require('../websocket/connectionManager');
 
 function isStrongPassword(password) {
   return (
@@ -263,7 +264,15 @@ exports.updateButtonStatusByUser = async (req, res) => {
       return res.status(404).json({ message: 'button not found' });
     }
 
-    sendButtonUpdateToUser(userId, updatedButton);
+    // Send button update to ESP via WebSocket
+    const espWs = getEspWebSocket(userId);
+    if (espWs && espWs.readyState === WebSocket.OPEN) {
+      espWs.send(JSON.stringify({
+        type: 'button_update',
+        button: updatedButton.buttonName,
+        status: parseInt(updatedButton.state)
+      }));
+    }
 
     return res.json({
       message: 'button status updated successfully',
