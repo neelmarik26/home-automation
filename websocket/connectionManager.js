@@ -66,6 +66,14 @@ function getUserEspStatusListeners(userId) {
     return userEspStatusListeners.get(userId);
 }
 
+function isDeviceOnlineForUser(userId) {
+    const userIdStr = userId.toString();
+    for (const [, conn] of deviceConnections) {
+        if (conn.userId === userIdStr) return true;
+    }
+    return false;
+}
+
 function notifyEspStatusChange(userId, deviceId, status) {
     const listeners = userEspStatusListeners.get(userId);
     if (listeners) {
@@ -95,5 +103,6 @@ module.exports = {
     getDeviceConnection,
     getDeviceConnections,
     getUserEspStatusListeners,
-    notifyEspStatusChange
+    notifyEspStatusChange,
+    isDeviceOnlineForUser
 };

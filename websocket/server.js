@@ -12,7 +12,7 @@ const DeviceConnection = require('../models/DeviceConnection');
 function setupWebSocketServer(httpServer) {
     const wss = new WebSocket.Server({ noServer: true });
 
-    const HEARTBEAT_INTERVAL = 300000;  // 5 minutes
+    const HEARTBEAT_INTERVAL = 15000;  // 15 seconds
 
     // Heartbeat check interval
     const heartbeatInterval = setInterval(() => {

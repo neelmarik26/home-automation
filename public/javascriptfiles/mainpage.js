@@ -45,6 +45,10 @@ function connectUserWs() {
 
             if (payload.type === 'connected') {
                 console.log('Connected to WS, userId:', payload.userId);
+                // Set initial ESP status from connection response
+                if (payload.espStatus) {
+                    updateEspStatusIndicator(payload.espStatus);
+                }
             }
         } catch (error) {
             console.error('WebSocket message parse failed:', error);
@@ -144,7 +148,7 @@ window.addEventListener('DOMContentLoaded', async function () {
         return;
     }
     const user=JSON.parse(window.localStorage.getItem('user'));
-    document.getElementById("user-name").innerHTML=`welcome ${user.name}`
+    document.getElementById("user-name").innerHTML=`welcome ${user.name} Id:${user.id}`
 
     // Connect to WebSocket for ESP status updates
     connectUserWs();

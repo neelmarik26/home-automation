@@ -11,7 +11,7 @@ const jwt = require('jsonwebtoken');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const { setupWebSocketServer } = require('./websocket/server');
-const { registerUser, removeUser, registerEspStatusListener, removeEspStatusListener } = require('./websocket/connectionManager');
+const { registerUser, removeUser, registerEspStatusListener, removeEspStatusListener, isDeviceOnlineForUser } = require('./websocket/connectionManager');
 
 const app = express();
 const server = http.createServer();
@@ -41,8 +41,13 @@ wssFrontend.on('connection', (ws, req) => {
         registerUser(userId, ws);
         registerEspStatusListener(userId, ws);
 
-        // Send initial status
-        ws.send(JSON.stringify({ type: 'connected', userId }));
+        // Check if device is online for this user and send initial status
+        const isOnline = isDeviceOnlineForUser(userId);
+        ws.send(JSON.stringify({ 
+            type: 'connected', 
+            userId,
+            espStatus: isOnline ? 'ONLINE' : 'OFFLINE'
+        }));
 
         ws.on('close', () => {
             removeUser(userId);
@@ -69,40 +74,6 @@ server.on('upgrade', (request, socket, head) => {
         wssFrontend.handleUpgrade(request, socket, head, (ws) => {
             wssFrontend.emit('connection', ws, request);
         });
-    }
-});
-
-wssFrontend.on('connection', (ws, req) => {
-    // Extract token from query string - use url.parse for compatibility
-    const urlObj = new URL(req.url, `http://${req.headers.host}`);
-    const token = urlObj.searchParams.get('token');
-    if (!token) {
-        ws.close(1008, 'Token required');
-        return;
-    }
-
-    try {
-        const decoded = jwt.verify(token, process.env.token);
-        const userId = decoded.id;
-
-        ws.userId = userId;
-        registerUser(userId, ws);
-        registerEspStatusListener(userId, ws);
-
-        // Send initial status
-        ws.send(JSON.stringify({ type: 'connected', userId }));
-
-        ws.on('close', () => {
-            removeUser(userId);
-            removeEspStatusListener(userId, ws);
-        });
-
-        ws.on('error', () => {
-            removeUser(userId);
-            removeEspStatusListener(userId, ws);
-        });
-    } catch (err) {
-        ws.close(1008, 'Invalid token');
     }
 });
 
