@@ -107,9 +107,7 @@ function forgotPassword(params) {
 }
 async function otpmakeandsend() {
     const usermail = document.querySelector('#forgetemail').value;
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    console.log(otp)
-    const response = await fetch('/user/sendmail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, otp }) })
+    const response = await fetch('/user/sendmail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail}) })
     const result = await response.json();
     console.log('Server replied:', result.message);
     return result
