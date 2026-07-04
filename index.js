@@ -28,8 +28,6 @@ wssFrontend.on('connection', (ws, req) => {
     // Extract token from query string - use url.parse for compatibility
     const urlObj = new URL(req.url, `http://${req.headers.host}`);
     const token = urlObj.searchParams.get('token');
-    console.log("token:", token);
-    console.log("req.url:", req.url);
     if (!token) {
         ws.close(1008, 'Token required');
         return;
@@ -78,8 +76,6 @@ wssFrontend.on('connection', (ws, req) => {
     // Extract token from query string - use url.parse for compatibility
     const urlObj = new URL(req.url, `http://${req.headers.host}`);
     const token = urlObj.searchParams.get('token');
-    console.log("token:", token);
-    console.log("req.url:", req.url);
     if (!token) {
         ws.close(1008, 'Token required');
         return;

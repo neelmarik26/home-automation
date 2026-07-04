@@ -73,6 +73,7 @@ function setupWebSocketServer(httpServer) {
             let data;
             try {
                 const msgStr = message.toString();
+                console.log('Received message:', msgStr);
                 try {
                     data = JSON.parse(msgStr);
                 } catch {
@@ -111,11 +112,20 @@ function setupWebSocketServer(httpServer) {
                     const buttonStates = {};
                     buttons.forEach(b => { buttonStates[b.buttonName] = parseInt(b.state); });
 
-                    ws.send(JSON.stringify({
-                        type: 'register_ack',
-                        status: 'ok',
-                        buttons: buttonStates
-                    }));
+                    // // Send register_ack first
+                    // ws.send(JSON.stringify({
+                    //     type: 'register_ack',
+                    //     status: 'ok'
+                    // }));
+
+                    // Send each button state in the requested format
+                    for (const [button, status] of Object.entries(buttonStates)) {
+                        ws.send(JSON.stringify({
+                            type: 'button_update',
+                            button: button,
+                            status: status
+                        }));
+                    }
 
                     // Notify frontend
                     notifyEspStatusChange(data.userId, data.deviceId, 'ONLINE');

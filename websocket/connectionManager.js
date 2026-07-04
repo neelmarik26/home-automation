@@ -19,8 +19,9 @@ function registerEspStatusListener(userId, ws) {
 }
 
 function getEspWebSocket(userId) {
+    const userIdStr = userId.toString();
     for (const [, conn] of deviceConnections) {
-        if (conn.userId === userId) return conn.ws;
+        if (conn.userId === userIdStr) return conn.ws;
     }
     return null;
 }
