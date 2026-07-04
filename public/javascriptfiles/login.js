@@ -108,18 +108,19 @@ function forgotPassword(params) {
 async function otpmakeandsend() {
     const usermail = document.querySelector('#forgetemail').value;
     const otp = String(Math.floor(100000 + Math.random() * 900000));
-    // console.log(otp)
-    const response = await fetch('/sendmail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, otp }) })
+    console.log(otp)
+    const response = await fetch('/user/sendmail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, otp }) })
     const result = await response.json();
     console.log('Server replied:', result.message);
     return result
 }
 async function sendotp() {
     const usermail = document.querySelector('#forgetemail').value;
+    console.log("user email is ==> " + usermail);
     if (isValidEmail(usermail)) {
         const result = await otpmakeandsend(); // backend sends OTP and returns { message, otp }
 
-        if (result.message === " i get this") {
+        if (result.status === true) {
             // Show OTP section, hide send button
             document.getElementById('otpSection').style.display = 'block';
             document.getElementById('sendOtp').style.display = 'none';
@@ -234,7 +235,7 @@ async function savetodb(message, newpassword) {
     if (message === "all ok boss") {
         const usermail = document.querySelector('#forgetemail').value;
         // console.log(usermail, message, newpassword)
-        const response = await fetch('/cpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, newpassword }) })
+        const response = await fetch('/user/cpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, newpassword}) })
         const result = await response.json();
         console.log('Server replied:', result.message);
         document.getElementById('givemsg').innerHTML = result.message;

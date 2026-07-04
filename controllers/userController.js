@@ -2,10 +2,18 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const WebSocket = require('ws');
+const nodemailer = require('nodemailer');
+const transporter = nodemailer.createTransport({
+  service: "gmail", // or another email provider
+  auth: {
+    user: process.env.email, // your email address
+    pass: process.env.email_password // NOT your normal Gmail password
+  }
+});
+
 
 const User = require('../models/userdataschem');
 const ButtonState = require('../models/LAST5BUTTON');
-const { sendOtpEmail } = require('../helpers/emailhelper');
 const { getEspWebSocket } = require('../websocket/connectionManager');
 
 function isStrongPassword(password) {
@@ -103,7 +111,7 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-
+    // console.log('Login request received:', { email, password });
     if (!email || !password) {
       return res.status(400).json({ message: 'email and password are required' });
     }
@@ -138,80 +146,64 @@ exports.loginUser = async (req, res) => {
       },
     });
   } catch (error) {
+    // console.log('Error during login:', error);
     return res.status(500).json({ message: 'error occurred while logging in', error: error.message });
   }
 };
 
 exports.sendForgotPasswordOtp = async (req, res) => {
   try {
-    const { email } = req.body;
-
-    if (!email) {
+    const { usermail } = req.body;
+    console.log("user email is ==> " + usermail);
+    if (!usermail) {
       return res.status(400).json({ message: 'email is required' });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: usermail });
     if (!existingUser) {
       return res.status(404).json({ message: 'user not found' });
     }
 
     const otp = String(crypto.randomInt(100000, 1000000));
+    // console.log("Generated OTP is ==> " + otp);
     existingUser.passwordResetOtp = otp;
     existingUser.passwordResetOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await existingUser.save();
 
-    await sendOtpEmail(email, otp);
+    await transporter.sendMail({
+      from: process.env.email,
+      to: usermail,
+      subject: "Your OTP Code",
+      text: `welcome!,Your OTP code is: ${otp}`
+    });
 
-    return res.json({ message: 'otp sent to email' });
+    res.send({ status: true, message: "Email sent successfully", otp: otp })
   } catch (error) {
-    return res.status(500).json({ message: 'failed to send otp', error: error.message });
+    return res.status(500).json({ status: false, message: 'failed to send otp', error: error.message });
   }
 };
 
 exports.verifyOtpAndResetPassword = async (req, res) => {
+  const { usermail, newpassword } = req.body;
+  const haspass = await bcrypt.hash(newpassword, 10);
   try {
-    const { email, otp, password, newpassword } = req.body;
-    const nextPassword = password || newpassword;
-
-    if (!email || !otp || !nextPassword) {
-      return res.status(400).json({ message: 'email, otp, and new password are required' });
+    const olduser = await User.findOne({ email: usermail });
+    if (!olduser) {
+      res.json({ message: "user not found" })
     }
-
-    if (!isStrongPassword(nextPassword)) {
-      return res.status(400).json({
-        message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+    else {
+      olduser.password = haspass;
+      await olduser.save();
+      await transporter.sendMail({
+        from: process.env.email,
+        to: usermail,
+        subject: "Password Updated",
+        text: `welcome!,Your password has been updated to ${newpassword} successfully.`
       });
+      res.json({ message: "Password updated successfully" })
     }
-
-    const existingUser = await User.findOne({ email });
-    if (!existingUser) {
-      return res.status(404).json({ message: 'user not found' });
-    }
-
-    if (!existingUser.passwordResetOtp || !existingUser.passwordResetOtpExpiresAt) {
-      return res.status(400).json({ message: 'otp not found or expired' });
-    }
-
-    if (existingUser.passwordResetOtpExpiresAt.getTime() < Date.now()) {
-      existingUser.passwordResetOtp = null;
-      existingUser.passwordResetOtpExpiresAt = null;
-      await existingUser.save();
-      return res.status(400).json({ message: 'otp expired' });
-    }
-
-    if (existingUser.passwordResetOtp !== String(otp)) {
-      return res.status(400).json({ message: 'invalid otp' });
-    }
-
-    const hashedPassword = await bcrypt.hash(nextPassword, 10);
-    existingUser.password = hashedPassword;
-    existingUser.passwordResetOtp = null;
-    existingUser.passwordResetOtpExpiresAt = null;
-    await existingUser.save();
-
-    return res.json({ message: 'Password updated successfully' });
-  } catch (error) {
-    return res.status(500).json({ message: 'failed to reset password', error: error.message });
+  } catch (e) {
+    res.json({ message: "Error updating password" })
   }
 };
 
