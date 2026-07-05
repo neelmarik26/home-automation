@@ -3,6 +3,7 @@ require('dotenv').config();
 const mongoose = require("mongoose");
 const cors = require('cors');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const path = require('path');
 const user = require('./models/userdataschem.js')
 const ButtonState = require("./models/LAST5BUTTON.js");
@@ -20,16 +21,15 @@ let btn2sts = 0;
 let btn3sts = 0;
 let btn4sts = 0;
 let espSocket = null;
-const loginAttempts = {};
 
 // connect to mongo db data base with user info
 mongoose.connect(process.env.mongodb_url)
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.log('MongoDB connection error:', err));
 
-async function initializeButtonStates() {
+async function initializeButtonStates(id) {
   try {
-    const buttons = await ButtonState.find({});
+    const buttons = await ButtonState.find({userId:id});
     buttons.forEach(button => {
       switch (button.buttonName) {
         case 'btn1': btn1sts = parseInt(button.state); break;
@@ -54,19 +54,20 @@ app.use(express.json());
 // ALL POST ROUTES
 // ================================================================
 
-app.post("/start", async(req, res) => {
-  await initializeButtonStates();
+app.post("/start",decodeJwtToken, async(req, res) => {
+  const useData=req.user
+  await initializeButtonStates(useData._id);
   res.json({ button1:btn1sts, button2:btn2sts, button3:btn3sts, button4:btn4sts });
 });
 
-app.post('/mainpagetoken', async (req, res) => {
-  const { usertoken } = req.body;
-  console.log(usertoken)
+app.post('/mainpagetoken', decodeJwtToken,async (req, res) => {
+  const { userData } = req.user;
+  console.log(userData)
   try {
-    const token = await user.findOne({ _id: usertoken });
+    const token = await user.findOne({ _id: userData._id });
     if (token) {
       console.log("token is found")
-      res.json({ message: "token is found" })
+      res.json({ message: "token is found" ,data: userData})
     } else {
       res.json({ message: "token is not found" })
     }
@@ -117,43 +118,51 @@ app.post('/olduser', async (req, res) => {
   const olduser = await user.findOne({ email: email });
   if (!olduser) {
     console.log('no user found')
-    res.json({ reply: "no user found" })
+    return res.json({ reply: "no user found" })
   }
-  if (!loginAttempts[email]) {
-    loginAttempts[email] = { attempts: 0, lockUntil: 0, lockDuration: 60000 };
-  }
-  const attemptInfo = loginAttempts[email];
-  const now = Date.now();
-  if (now < attemptInfo.lockUntil) {
-    const waitTime = Math.ceil((attemptInfo.lockUntil - now) / 1000);
-    return res.json({ reply: `Too many failed attempts.`, remaining: waitTime, message: 'locked' });
-  }
+
   const sts = await checkPassword(password, olduser.password)
   if (sts) {
-    res.json({ reply: 'user found', pass: 'match', token: olduser._id })
+    const token = jwt.sign(
+      {
+        id: olduser._id,
+        name: olduser.name,
+        email: olduser.email
+      },
+      process.env.token,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      reply: 'user found',
+      pass: 'match',
+      token,
+      user: {
+        id: olduser._id,
+        name: olduser.name,
+        email: olduser.email
+      }
+    })
   } else {
-    attemptInfo.attempts += 1;
-    if (attemptInfo.attempts >= 5) {
-      attemptInfo.lockUntil = now + attemptInfo.lockDuration;
-      attemptInfo.attempts = 0;
-      attemptInfo.lockDuration *= 2;
-      const waitTime = (attemptInfo.lockDuration / 1000) / 2;
-      return res.json({ reply: `Too many failed attempts.`, remaining: waitTime, message: 'locked' });
-    }
-    return res.json({ reply: `${5 - attemptInfo.attempts} attempts left.`, pass: 'notmatch', message: "password not match." });
+    return res.json({ reply: `0 attempts left.`, pass: 'notmatch', message: "password not match." });
   }
 })
+
 
 app.post('/newuser', async (req, res) => {
   try {
     const { username, email, password } = req.body;
+    const existingUser = await user.findOne({ email: email });
+    if(existingUser){
+      return res.json({ e: 'error occer', message: "user is alredy register" })
+    }
     const encriptpass = await hashpassword(password);
     const newuser = new user({ name: username, email: email, password: encriptpass });
     await newuser.save();
-    const olduser = await user.findOne({ email: email });
-    res.json({ reply: "welcome!", received: req.body.email, token: olduser._id });
+    const createdUser = await user.findOne({ email: email });
+    res.json({ reply: "welcome!", received: req.body.email, token: createdUser._id });
   } catch (error) {
-    if (error.code == 11000) res.json({ e: 'error occer', message: "user is alredy register" })
+
     if (error.name === 'ValidationError') {
       const firstError = Object.values(error.errors)[0];
       res.json({ e: "error occer", message: firstError.message })

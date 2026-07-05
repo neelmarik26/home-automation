@@ -126,6 +126,43 @@ input[type="password"]::placeholder {
     color: rgba(255, 255, 255, 0.5);
 }
 
+/* Password toggle button styles */
+.wrinput {
+    position: relative;
+    width: 100%;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-password-btn img {
+    width: 20px;
+    height: 20px;
+    filter: invert(100%);
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.toggle-password-btn:hover img {
+    opacity: 1;
+}
+
+/* Adjust password input padding to make room for the toggle button */
+input[type="password"] {
+    padding-right: 3.5rem;
+}
+
 .buttongruop {
     display: flex;
     gap: 1.5rem;

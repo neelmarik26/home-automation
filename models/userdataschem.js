@@ -17,13 +17,34 @@ const userdataschem = new mongoose.Schema({
     password: {
         type: String,
         required: [true, 'Password is required'],
-        minlength: [8, 'Password must be at least 8 characters'],
-        validate: {
-            validator: function (password) {
-                return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(password);
-            },
-            message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
-        }
+        minlength: [8, 'Password must be at least 8 characters']
+    },
+    passwordResetOtp: {
+        type: String,
+        default: null
+    },
+    passwordResetOtpExpiresAt: {
+        type: Date,
+        default: null
+    },
+    type: {
+        type: String,
+        enum: ['USER', 'ADMIN'],
+        default: 'USER'
+    },
+    status: {
+        type: String,
+        enum: ['ACTIVE', 'BLOCKED'],
+        default: 'ACTIVE'
+    },
+    deviceId: {
+        type: String,
+        default: null
+    },
+    deviceStatus: {
+        type: String,
+        enum: ['ONLINE', 'OFFLINE'],
+        default: 'OFFLINE'
     }
 },{
     timestamps: true

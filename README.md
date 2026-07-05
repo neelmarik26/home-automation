@@ -1,2 +1,1 @@
-hello dev..........s this is my iot based home auto mation system 😗stay connected with mee and stay updated
------------neel marik:)
+ssh command : ssh -i "./ssh-key-2026-06-27.key" ubuntu@80.225.216.53

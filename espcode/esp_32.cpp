@@ -1,386 +1,316 @@
+// ============================================================
+// ESP32 HOME AUTOMATION - WebSocket Client (simplified)
+// ============================================================
+
 #include <WiFi.h>
+#include <ArduinoOTA.h>
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
-#include <EEPROM.h>
+#include <WiFiManager.h>
+#include <Preferences.h>
 
-// ─── Hardware Pin Mapping (NodeMCU D5..D8 → ESP32 GPIO) ──────────
-#define LED_BUILTIN   2      // Built‑in LED (active LOW on most dev boards)
-#define PIN_BTN1     14      // D5
-#define PIN_BTN2     12      // D6
-#define PIN_BTN3     13      // D7
-#define PIN_BTN4     15      // D8
+// ------------------------------------------------------------
+// PIN DEFINITIONS (adjust to your board)
+// ------------------------------------------------------------
+#define RELAY_1       12
+#define RELAY_2       14
+#define RELAY_3       27
+#define RELAY_4       26
+#define BUILTIN_LED   2
 
-// ─── EEPROM Configuration ─────────────────────────────────────────
-#define EEPROM_SIZE   128
-
-// ─── Fallback / Hard‑coded Wi‑Fi Credentials ──────────────────────
-const char* FALLBACK_SSID     = "neel pc";
-const char* FALLBACK_PASSWORD = "neel2006";
-
-// ─── WebSocket Server Config ──────────────────────────────────────
-const char* WS_HOST = "home-automation-1-8kqb.onrender.com";
-const uint16_t WS_PORT = 443;
+// ------------------------------------------------------------
+// WEBSOCKET SERVER
+// ------------------------------------------------------------
+const char* WS_HOST = "80.225.216.53";
+const uint16_t WS_PORT = 3000;
 const char* WS_PATH = "/ws";
 
-// ─── Global Objects & State ───────────────────────────────────────
-WebSocketsClient webSocket;
-bool webSocketConnected = false;
-unsigned long lastWebSocketAttempt = 0;
-const unsigned long WEBSOCKET_RETRY_INTERVAL = 5000; // ms
+// ------------------------------------------------------------
+// OTA SETTINGS
+// ------------------------------------------------------------
+const char* OTA_HOSTNAME = "esp32-home";
+const char* OTA_PASSWORD = "123456";   // Change this!
 
-unsigned long lastWiFiCheck = 0;
-const unsigned long WIFI_CHECK_INTERVAL = 2000;      // ms
+// ------------------------------------------------------------
+// WIFI MANAGER SETTINGS
+// ------------------------------------------------------------
+const char* WM_AP_NAME = "ESP32-Setup";
+const int WM_TIMEOUT = 180;            // seconds
 
-// ─── Forward Declarations ─────────────────────────────────────────
-void connectToWiFi(const char* ssid, const char* password);
-void saveCredentials(String ssid, String pass);
-String readSSID();
-String readPassword();
-void clearCredentials();
-void connectWebSocket();
-void handleWebSocketConnection();
-void checkWiFiStatus();
-void fallbackToSavedCredentials();
-void onWebSocketEvent(WStype_t type, uint8_t* payload, size_t length);
+// ------------------------------------------------------------
+// GLOBAL OBJECTS
+// ------------------------------------------------------------
+WebSocketsClient wsClient;
+WiFiManager wm;
 
-// ─── WebSocket Event Handler ──────────────────────────────────────
-void onWebSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
+// for user send data from the fiwi manager portal {custom}
+char USER_ID[50] = "";
+WiFiManagerParameter custom_name(
+    "name",
+    "User ID",
+    USER_ID,
+    50
+);
+
+// ------------------------------------------------------------
+// HELPER: set relay on/off
+// ------------------------------------------------------------
+void setRelay(int pin, bool on) {
+  digitalWrite(pin, on ? HIGH : LOW);
+}
+
+// ------------------------------------------------------------
+// WEBSOCKET EVENT HANDLER (called automatically by library)
+// ------------------------------------------------------------
+void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
-    case WStype_DISCONNECTED:
-      Serial.println("[WS] Disconnected");
-      webSocketConnected = false;
-      break;
+    case WStype_CONNECTED:{
+      Serial.println("[WS] ✅ Connected to server");
+      Preferences prefs;
+      prefs.begin("user", false);
+      // Serial.print("[WiFi] USER ID: "); Serial.println(prefs.getString("id",""));
+      // Ask server for current relay states
+      // String json = "{\"request\":\"status\",\"device\":\"ESP32\",\"id\":\""+prefs.getString("id", "")+"\"}";
+      String userId = prefs.getString("id", "");
+      Serial.println("userId==>");      
+      Serial.println(userId);
 
-    case WStype_CONNECTED:
-      Serial.printf("[WS] Connected to: wss://%s%s\n", WS_HOST, WS_PATH);
-      webSocketConnected = true;
-      webSocket.sendTXT("Hello from ESP32!");
+      String json = "{\"userId\":\"" + userId +
+              "\",\"deviceId\":\"" + userId + "-esp" +
+              "\",\"type\":\"register\"}";
+      wsClient.sendTXT(json);
+      prefs.end();
+      break;
+    }
+    case WStype_DISCONNECTED:
+      Serial.println("[WS] ❌ Disconnected");
       break;
 
     case WStype_TEXT:
       {
-        Serial.printf("[WS] Message received (%d bytes)\n", length);
-
-        // Parse JSON
+        // Parse JSON safely
         StaticJsonDocument<512> doc;
         DeserializationError err = deserializeJson(doc, payload, length);
         if (err) {
-          Serial.print("JSON parse error: ");
+          Serial.print("[WS] JSON error: ");
           Serial.println(err.c_str());
-          break;
+          return;
         }
 
-        // ── 1. Button control (same as original second snippet) ──
-        if (doc.containsKey("button") && doc.containsKey("status")) {
-          const char* btn = doc["button"];
-          int sts = doc["status"];
-          Serial.printf("%s status: %d\n", btn, sts);
+        // ---- NEW WI-FI CREDENTIALS ----
+        if (doc.containsKey("ssid") && doc.containsKey("password")) {
+          String newSSID = doc["ssid"].as<String>();
+          String newPass = doc["password"].as<String>();
 
-          if (strcmp(btn, "all") == 0) {
-            digitalWrite(PIN_BTN1, LOW);
-            digitalWrite(PIN_BTN2, LOW);
-            digitalWrite(PIN_BTN3, LOW);
-            digitalWrite(PIN_BTN4, LOW);
-          } else if (strcmp(btn, "btn1") == 0) {
-            digitalWrite(PIN_BTN1, sts == 1 ? HIGH : LOW);
-          } else if (strcmp(btn, "btn2") == 0) {
-            digitalWrite(PIN_BTN2, sts == 1 ? HIGH : LOW);
-          } else if (strcmp(btn, "btn3") == 0) {
-            digitalWrite(PIN_BTN3, sts == 1 ? HIGH : LOW);
-          } else if (strcmp(btn, "btn4") == 0) {
-            digitalWrite(PIN_BTN4, sts == 1 ? HIGH : LOW);
+          Serial.println("[WiFi] Received new credentials:");
+          Serial.print("       SSID: "); Serial.println(newSSID);
+
+          // 1. Disconnect WebSocket BEFORE switching networks
+          wsClient.disconnect();
+          delay(200);
+
+          // 2. Save credentials for next boot
+          wm.setAPStaticIPConfig(IPAddress(0,0,0,0), IPAddress(0,0,0,0), IPAddress(0,0,0,0));
+          wm.setConfigPortalBlocking(false);
+          // WiFiManager uses "wifi_cred" namespace internally – we must use Preferences directly
+          {
+            Preferences prefs;
+            prefs.begin("wifi_cred", false);
+            prefs.putString("sta_ssid", newSSID);
+            prefs.putString("sta_pswd", newPass);
+            prefs.end();
           }
-        }
 
-        // ── 2. New Wi‑Fi credentials ──
-        else if (doc.containsKey("ssid") && doc.containsKey("password")) {
-          const char* newSSID = doc["ssid"];
-          const char* newPASS = doc["password"];
-          Serial.println("New credentials received via WebSocket!");
+          // 3. Connect to new network
+          Serial.print("[WiFi] Connecting to new network...");
+          WiFi.disconnect(false, true);
+          WiFi.begin(newSSID.c_str(), newPass.c_str());
 
-          // Try new credentials
-          connectToWiFi(newSSID, newPASS);
+          int attempts = 0;
+          while (WiFi.status() != WL_CONNECTED && attempts < 40) {
+            delay(500);
+            Serial.print(".");
+            attempts++;
+          }
+
           if (WiFi.status() == WL_CONNECTED) {
-            Serial.println("✅ Connected with new credentials, saving...");
-            saveCredentials(newSSID, newPASS);
-            // Re‑establish WebSocket because Wi‑Fi may have changed
-            webSocketConnected = false;
-            lastWebSocketAttempt = 0;
+            Serial.println("\n[WiFi] ✅ Connected!");
+            Serial.print("[WiFi] IP: "); Serial.println(WiFi.localIP());
+
+            // 4. Reconnect WebSocket on the new network
+            Serial.println("[WS] Reconnecting WebSocket...");
+            wsClient.begin(WS_HOST, WS_PORT, WS_PATH);
+            // Wait a moment for the connection to settle,
+            // then wsClient.loop() will trigger the event (and request status)
           } else {
-            Serial.println("❌ New credentials failed, reverting.");
-            fallbackToSavedCredentials();
+            Serial.println("\n[WiFi] ❌ Failed. Restarting device...");
+            delay(500);
+            ESP.restart();
           }
+          return;  // done handling this message
         }
+
+        // ---- RELAY / BUTTON CONTROL ----
+        if (doc.containsKey("button") && doc.containsKey("status")) {
+          String button = doc["button"].as<String>();
+          int status = doc["status"].as<int>();
+
+          Serial.print("[CTRL] Button: "); Serial.print(button);
+          Serial.print(" -> "); Serial.println(status);
+
+          if (button == "all") {
+            if (status == 0) {  // turn all OFF
+              setRelay(RELAY_1, false);
+              setRelay(RELAY_2, false);
+              setRelay(RELAY_3, false);
+              setRelay(RELAY_4, false);
+            }
+            // ignore "all" status=1 (usually means "on" but let’s not turn on all)
+          } else if (button == "btn1") setRelay(RELAY_1, status);
+          else if (button == "btn2") setRelay(RELAY_2, status);
+          else if (button == "btn3") setRelay(RELAY_3, status);
+          else if (button == "btn4") setRelay(RELAY_4, status);
+          return;
+        }
+
+        Serial.println("[WS] Unknown JSON message");
       }
-      break;
-
-    case WStype_BIN:
-      Serial.printf("[WS] Binary data: %d bytes\n", length);
-      break;
-
-    case WStype_PING:
-      Serial.println("[WS] Ping");
-      break;
-
-    case WStype_PONG:
-      Serial.println("[WS] Pong");
       break;
 
     case WStype_ERROR:
-      Serial.println("[WS] Error");
+      Serial.println("[WS] ⚠️ Error");
+      break;
+
+    default:
       break;
   }
 }
 
-// ─── Wi‑Fi Connection Helper ──────────────────────────────────────
-void connectToWiFi(const char* ssid, const char* password) {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  Serial.printf("Connecting to '%s'", ssid);
+// ------------------------------------------------------------
+// SETUP OTA
+// ------------------------------------------------------------
+void setupOTA() {
+  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  ArduinoOTA.setPassword(OTA_PASSWORD);   // required when uploading
 
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
+  ArduinoOTA.onStart([]() {
+    Serial.println("[OTA] Update started");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("[OTA] Update complete, restarting...");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("[OTA] Progress: %u%%\r", (progress * 100) / total);
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("[OTA] Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
 
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWi‑Fi connected!");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("\nWi‑Fi connection failed.");
-    WiFi.disconnect();
-  }
+  ArduinoOTA.begin();
+  Serial.println("[OTA] Ready");
 }
 
-// ─── EEPROM Helpers ───────────────────────────────────────────────
-void saveCredentials(String ssid, String pass) {
-  EEPROM.begin(EEPROM_SIZE);
-  // Write SSID at address 0..31
-  for (int i = 0; i < 32; i++) {
-    EEPROM.write(i, (i < ssid.length()) ? ssid[i] : 0);
-  }
-  // Write password at address 32..63
-  for (int i = 0; i < 32; i++) {
-    EEPROM.write(32 + i, (i < pass.length()) ? pass[i] : 0);
-  }
-  EEPROM.commit();
-  Serial.println("Credentials saved to EEPROM");
-}
-
-String readSSID() {
-  EEPROM.begin(EEPROM_SIZE);
-  char buf[33] = {0};
-  for (int i = 0; i < 32; i++) {
-    byte c = EEPROM.read(i);
-    if (c == 0 || c == 0xFF) break;
-    buf[i] = (char)c;
-  }
-  return String(buf);
-}
-
-String readPassword() {
-  EEPROM.begin(EEPROM_SIZE);
-  char buf[33] = {0};
-  for (int i = 0; i < 32; i++) {
-    byte c = EEPROM.read(32 + i);
-    if (c == 0 || c == 0xFF) break;
-    buf[i] = (char)c;
-  }
-  return String(buf);
-}
-
-void clearCredentials() {
-  EEPROM.begin(EEPROM_SIZE);
-  for (int i = 0; i < EEPROM_SIZE; i++) EEPROM.write(i, 0);
-  EEPROM.commit();
-  Serial.println("EEPROM cleared");
-}
-
-void fallbackToSavedCredentials() {
-  String savedSSID = readSSID();
-  String savedPASS = readPassword();
-  if (savedSSID.length() > 0 && savedSSID.length() <= 31) {
-    Serial.println("Reverting to saved credentials...");
-    connectToWiFi(savedSSID.c_str(), savedPASS.c_str());
-    // Force WebSocket reconnection
-    webSocketConnected = false;
-    lastWebSocketAttempt = 0;
-  } else {
-    Serial.println("No valid saved credentials, using fallback.");
-    connectToWiFi(FALLBACK_SSID, FALLBACK_PASSWORD);
-    webSocketConnected = false;
-    lastWebSocketAttempt = 0;
-  }
-}
-
-// ─── WebSocket Connection Management ─────────────────────────────
-void connectWebSocket() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[WS] Cannot connect – no Wi‑Fi");
-    webSocketConnected = false;
-    return;
-  }
-
-  Serial.println("[WS] Connecting to server...");
-  webSocket.beginSSL(WS_HOST, WS_PORT, WS_PATH);
-  // On ESP32, beginSSL sets up TLS automatically
-  // (Certificates are validated using the built‑in root store)
-}
-
-void handleWebSocketConnection() {
-  // Attempt reconnect if Wi‑Fi is up but WS is down
-  if (WiFi.status() == WL_CONNECTED && !webSocketConnected) {
-    unsigned long now = millis();
-    if (now - lastWebSocketAttempt >= WEBSOCKET_RETRY_INTERVAL) {
-      lastWebSocketAttempt = now;
-      connectWebSocket();
-    }
-  }
-}
-
-// ─── Wi‑Fi Status Monitor ─────────────────────────────────────────
-void checkWiFiStatus() {
-  static bool lastWiFiStatus = false;
-  bool currentWiFiStatus = (WiFi.status() == WL_CONNECTED);
-  if (currentWiFiStatus != lastWiFiStatus) {
-    if (currentWiFiStatus) {
-      Serial.println("✅ Wi‑Fi reconnected");
-      webSocketConnected = false;
-      lastWebSocketAttempt = 0;
-    } else {
-      Serial.println("❌ Wi‑Fi disconnected");
-      webSocketConnected = false;
-    }
-    lastWiFiStatus = currentWiFiStatus;
-  }
-}
-
-// ─── Setup ────────────────────────────────────────────────────────
+// ------------------------------------------------------------
+// SETUP
+// ------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
-  delay(500);
   Serial.println("\n====================================");
-  Serial.println("   ESP32 Home Automation Client");
+  Serial.println(" ESP32 Home Automation Booting...");
   Serial.println("====================================");
 
-  // Init pins
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);  // LED off (active LOW on most ESP32 boards)
-  pinMode(PIN_BTN1, OUTPUT); digitalWrite(PIN_BTN1, LOW);
-  pinMode(PIN_BTN2, OUTPUT); digitalWrite(PIN_BTN2, LOW);
-  pinMode(PIN_BTN3, OUTPUT); digitalWrite(PIN_BTN3, LOW);
-  pinMode(PIN_BTN4, OUTPUT); digitalWrite(PIN_BTN4, LOW);
+  // Pin modes
+  pinMode(BUILTIN_LED, OUTPUT);
+  digitalWrite(BUILTIN_LED, HIGH);  // off (active-low)
+  pinMode(RELAY_1, OUTPUT); digitalWrite(RELAY_1, LOW);
+  pinMode(RELAY_2, OUTPUT); digitalWrite(RELAY_2, LOW);
+  pinMode(RELAY_3, OUTPUT); digitalWrite(RELAY_3, LOW);
+  pinMode(RELAY_4, OUTPUT); digitalWrite(RELAY_4, LOW);
 
-  // Try stored Wi‑Fi credentials first, then fallback
-  String ssid = readSSID();
-  String pass = readPassword();
-  if (ssid.length() > 0 && ssid.length() <= 31) {
-    Serial.println("Using stored Wi‑Fi credentials.");
-    connectToWiFi(ssid.c_str(), pass.c_str());
-  } else {
-    Serial.println("No stored credentials, using fallback.");
-    connectToWiFi(FALLBACK_SSID, FALLBACK_PASSWORD);
+  // ---- WiFiManager ----
+  wm.addParameter(&custom_name);
+  wm.setConfigPortalTimeout(WM_TIMEOUT);
+  if (!wm.autoConnect(WM_AP_NAME)) {
+    Serial.println("[WiFi] Portal timeout, restarting...");
+    delay(3000);
+    ESP.restart();
+  }
+  Serial.println("[WiFi] Connected!");
+  Serial.print("[WiFi] IP: "); Serial.println(WiFi.localIP());
+  Serial.print("[WiFi] USER ID: "); Serial.println(custom_name.getValue());
+  // Preferences prefs;
+  // prefs.begin("user", false);
+  Preferences prefs;
+  prefs.begin("user", false);
+
+  if (strlen(custom_name.getValue()) > 0) {
+      prefs.putString("id", custom_name.getValue());
   }
 
-  // Configure WebSocket
-  webSocket.onEvent(onWebSocketEvent);
-  webSocket.setReconnectInterval(5000);          // auto‑reconnect every 5s
-  webSocket.enableHeartbeat(15000, 3000, 2);     // ping every 15s, 3s timeout, 2 failures = disconnect
+  Serial.println(prefs.getString("id", ""));
+  prefs.end();
+  // prefs.putString("id",custom_name.getValue());
+  // Serial.print("[WiFi] USER ID: "); Serial.println(prefs.getString("id",""));
+  // prefs.end();
 
-  // Start first connection attempt
-  connectWebSocket();
-  lastWebSocketAttempt = millis();
-  lastWiFiCheck = millis();
+  // ---- OTA ----
+  setupOTA();
+
+  // ---- WebSocket ----
+  wsClient.onEvent(webSocketEvent);
+  wsClient.begin(WS_HOST, WS_PORT, WS_PATH);
+  Serial.println("[WS] Initialising WebSocket...");
 }
 
-// ─── Main Loop ────────────────────────────────────────────────────
+// ------------------------------------------------------------
+// MAIN LOOP
+// ------------------------------------------------------------
 void loop() {
-  // 1. Monitor Wi‑Fi status
-  checkWiFiStatus();
+  // OTA handler – must be called frequently
+  ArduinoOTA.handle();
 
-  // 2. Handle WebSocket reconnection / polling
-  handleWebSocketConnection();
-  webSocket.loop();
+  // WebSocket handler – triggers our event callback
+  wsClient.loop();
 
-  // 3. Status LED
+  // LED indicator
   if (WiFi.status() == WL_CONNECTED) {
-    if (webSocketConnected) {
-      digitalWrite(LED_BUILTIN, LOW); // LED ON = both connected
+    if (wsClient.isConnected()) {
+      digitalWrite(BUILTIN_LED, LOW);   // solid ON = all good
     } else {
-      // Blink when Wi‑Fi is OK but WS is not connected
-      digitalWrite(LED_BUILTIN, (millis() / 500) % 2 == 0 ? LOW : HIGH);
+      // blink slowly while Wi‑Fi ok but WS not connected
+      digitalWrite(BUILTIN_LED, (millis() / 500) % 2 == 0 ? LOW : HIGH);
     }
   } else {
-    digitalWrite(LED_BUILTIN, HIGH); // LED OFF = no Wi‑Fi
+    digitalWrite(BUILTIN_LED, HIGH);     // OFF = no Wi‑Fi
   }
 
-  // 4. Serial command interface (same as original second snippet)
+  // ---- Serial commands for debugging ----
   if (Serial.available()) {
-    String data = Serial.readStringUntil('\n');
-    data.trim();
-
-    if (data == "CLEAR_EEPROM") {
-      clearCredentials();
-      Serial.println("EEPROM cleared. Restarting...");
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    if (cmd == "STATUS") {
+      Serial.println("--- DEVICE STATUS ---");
+      Serial.print("WiFi : "); Serial.println(WiFi.status() == WL_CONNECTED ? "Connected" : "Offline");
+      Serial.print("WS   : "); Serial.println(wsClient.isConnected() ? "Connected" : "Disconnected");
+      Serial.print("IP   : "); Serial.println(WiFi.localIP());
+    } else if (cmd == "RESET_WIFI") {
+      Serial.println("[WiFi] Clearing saved credentials...");
+      wm.resetSettings();
+      delay(500);
       ESP.restart();
-      return;
-    }
-    if (data == "SHOW_EEPROM") {
-      Serial.println("EEPROM contents (first 64 bytes):");
-      EEPROM.begin(EEPROM_SIZE);
-      for (int i = 0; i < 64; i++) {
-        byte val = EEPROM.read(i);
-        if (i % 16 == 0) { Serial.println(); Serial.print(i); Serial.print(": "); }
-        if (val < 16) Serial.print("0");
-        Serial.print(val, HEX); Serial.print(" ");
-      }
-      Serial.println();
-      return;
-    }
-    if (data == "STATUS") {
-      Serial.print("Wi‑Fi: ");
-      Serial.println(WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected");
-      Serial.print("WebSocket: ");
-      Serial.println(webSocketConnected ? "Connected" : "Disconnected");
-      Serial.print("IP: ");
-      Serial.println(WiFi.localIP());
-      return;
-    }
-    if (data == "RECONNECT_WS") {
-      webSocketConnected = false;
-      lastWebSocketAttempt = 0;
-      Serial.println("Manual WebSocket reconnection triggered");
-      return;
-    }
-
-    int separator = data.indexOf(',');
-    if (separator > 0) {
-      String newSSID = data.substring(0, separator);
-      String newPASS = data.substring(separator + 1);
-      newSSID.trim();
-      newPASS.trim();
-
-      Serial.println("Trying new credentials from Serial...");
-      connectToWiFi(newSSID.c_str(), newPASS.c_str());
-
-      if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("✅ Connected! Saving...");
-        saveCredentials(newSSID, newPASS);
-        webSocketConnected = false;
-        lastWebSocketAttempt = 0;
-        connectWebSocket();
-      } else {
-        Serial.println("❌ Connection failed. Keeping old credentials.");
-        fallbackToSavedCredentials();
-      }
+    } else if (cmd == "RESTART") {
+      Serial.println("[System] Restarting...");
+      delay(500);
+      ESP.restart();
     } else {
-      Serial.println("Invalid format. Use: SSID,PASSWORD");
-      Serial.println("Other commands: CLEAR_EEPROM, SHOW_EEPROM, STATUS, RECONNECT_WS");
+      Serial.println("Available commands: STATUS | RESET_WIFI | RESTART");
     }
   }
 
-  delay(10); // slight delay to prevent watchdog issues
+  delay(10);
 }

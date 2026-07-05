@@ -23,6 +23,7 @@
                 <div>
                     <div class="logo-text">Home Automation</div>
                     <div class="logo-sub">IoT Control Panel</div>
+                    <div class="logo-sub" id="user-name">Welcome</div>
                 </div>
             </div>
             <nav class="navbar">
@@ -43,8 +44,8 @@
 
         <!-- ── Status Bar ── -->
         <div class="status-bar">
-            <div class="status-dot"></div>
-            <span class="status-text">System online</span>
+            <div class="status-dot" id="espStatusDot" style="background: #ff4757;"></div>
+            <span class="status-text" id="espStatusText">ESP offline</span>
             <span class="status-sep">·</span>
             <span class="devices-on-count" id="devicesOnCount">0 devices active</span>
             <span class="status-sep">·</span>

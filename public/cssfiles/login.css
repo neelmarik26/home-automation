@@ -677,6 +677,45 @@ label {
   transition: border-color 0.2s;
 }
 
+/* Password toggle button styles for new password popup */
+.password-input-wrapper,
+.wrinput {
+    position: relative;
+    width: 100%;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-password-btn img {
+    width: 20px;
+    height: 20px;
+    filter: invert(100%);
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.toggle-password-btn:hover img {
+    opacity: 1;
+}
+
+/* Adjust password input padding to make room for the toggle button */
+#newPassword,
+#confirmPassword {
+    padding-right: 3.5rem;
+}
+
 #newPassword:focus {
   border-color: #007bff;
 }
@@ -717,4 +756,10 @@ label {
   .submit-btnf {
     font-size: 0.95rem;
   }
+}
+.error-message {
+  color: #e74c3c;
+  font-size: 0.85rem;
+  margin-top: 5px;
+  text-align: center;
 }

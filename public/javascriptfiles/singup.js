@@ -1,5 +1,20 @@
 console.log("pggram run success fully")
 
+// Eye button functionality for password visibility toggle
+const passwordInput = document.getElementById("password");
+const toggleBtn = document.getElementById("togglePassword");
+const eyeIcon = document.getElementById("eyeicon");
+
+if (toggleBtn && passwordInput && eyeIcon) {
+    toggleBtn.addEventListener("click", () => {
+        const isPassword = passwordInput.type === "password";
+        passwordInput.type = isPassword ? "text" : "password";
+        
+        // Change image based on state
+        eyeIcon.src = isPassword ? "assits/closeeye.svg" : "assits/openey.svg";
+    });
+}
+
 document.querySelector(".sub").addEventListener("click", (e) => {
     e.preventDefault();
 
@@ -46,26 +61,22 @@ document.querySelector(".sub").addEventListener("click", (e) => {
     }
 });
 async function senddata(data) {
-    const response = await fetch('/newuser', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    const response = await fetch('/user/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     const result = await response.json();
     console.log('Server replied:', result);
-    if (result.e == "error occer") {
+    if (response.status !== 201) {
         const mydiv = document.getElementById('mydiv');
         mydiv.innerHTML = `<div class="message"><div class="mbox">${result.message} </div> `
     }
-    if(result.reply=="welcome!"){
+    if(response.status === 201){
         const mydiv = document.getElementById('mydiv');
-        mydiv.innerHTML = `<div class="message"><div class="mbox" >${result.reply} </div> `
+        mydiv.innerHTML = `<div class="message"><div class="mbox" >${result.message} </div> `
         setTimeout(()=>{
-         callmainpage(result.token);
-         console.log(result.token);
-        },1000);
+          window.location.href = '/';
+        },1500);
     }
 }
-async function callmainpage(token){
-    window.localStorage.setItem("token",token)
-    window.location.href = '/mainpage';
-}
+
 // reset button functalility 
 document.querySelector(".re").addEventListener('click',()=>{
     const emailInput = document.getElementById("email");
