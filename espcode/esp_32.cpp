@@ -12,16 +12,16 @@
 // ------------------------------------------------------------
 // PIN DEFINITIONS (adjust to your board)
 // ------------------------------------------------------------
-#define RELAY_1       18
-#define RELAY_2       19
-#define RELAY_3       21
-#define RELAY_4       22
+#define RELAY_1       12
+#define RELAY_2       14
+#define RELAY_3       27
+#define RELAY_4       26
 #define BUILTIN_LED   2
 
 // ------------------------------------------------------------
 // WEBSOCKET SERVER
 // ------------------------------------------------------------
-const char* WS_HOST = "192.168.31.63";
+const char* WS_HOST = "80.225.216.53";
 const uint16_t WS_PORT = 3000;
 const char* WS_PATH = "/ws";
 
