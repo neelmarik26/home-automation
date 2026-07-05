@@ -65,7 +65,7 @@ async function senddata(data) {
         }
        
     } catch (e) {
-        console.log(e.message)
+        document.querySelector('.messagebox').innerHTML = `<div>${result.message}</div>`
     }
 }
 let timerInterval = null;
@@ -101,44 +101,64 @@ function isValidEmail(email) {
 }
 function closepopup() {
     document.getElementById('forgotPasswordPopup').classList.remove('active');
+    // Reset the forgot password form
+    document.getElementById('otpSection').style.display = 'none';
+    document.getElementById('sendOtp').style.display = 'block';
+    document.getElementById('verifyOtp').style.display = 'none';
+    const inputs = document.querySelectorAll('.otp-digit');
+    inputs.forEach(input => {
+        input.value = '';
+    });
+    document.getElementById('forgetemail').value = '';
+    document.getElementById('error').innerHTML = '';
 }
 function forgotPassword(params) {
     document.getElementById('forgotPasswordPopup').classList.add('active');
 }
 async function otpmakeandsend() {
     const usermail = document.querySelector('#forgetemail').value;
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    // console.log(otp)
-    const response = await fetch('/sendmail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, otp }) })
+    const response = await fetch('/user/sendmail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail}) })
     const result = await response.json();
-    console.log('Server replied:', result.message);
+    if (!response.ok) {
+        throw new Error(result.message || 'Failed to send OTP');
+    }
     return result
 }
 async function sendotp() {
     const usermail = document.querySelector('#forgetemail').value;
+    if(!usermail || !isValidEmail(usermail)){
+        document.getElementById('error').innerHTML = "invalid email"
+        return;
+    }
     if (isValidEmail(usermail)) {
-        const result = await otpmakeandsend(); // backend sends OTP and returns { message, otp }
+        try {
+            const result = await otpmakeandsend(); // backend sends OTP and returns { message, otp }
 
-        if (result.message === " i get this") {
-            // Show OTP section, hide send button
-            document.getElementById('otpSection').style.display = 'block';
-            document.getElementById('sendOtp').style.display = 'none';
+            if (result.status === true) {
+                // Show OTP section, hide send button
+                document.getElementById('otpSection').style.display = 'block';
+                document.getElementById('sendOtp').style.display = 'none';
 
-            const verifyBtn = document.getElementById('verifyOtp');
-            verifyBtn.style.display = 'none'; // hide until OTP complete
-            verifyBtn.replaceWith(verifyBtn.cloneNode(true)); // remove old event listeners
-            const newVerifyBtn = document.getElementById('verifyOtp');
+                const verifyBtn = document.getElementById('verifyOtp');
+                verifyBtn.style.display = 'block'; // show verify button
+                verifyBtn.replaceWith(verifyBtn.cloneNode(true)); // remove old event listeners
+                const newVerifyBtn = document.getElementById('verifyOtp');
+                newVerifyBtn.onclick = submitotp; // attach click handler
 
-            // Setup OTP input handling
-            setupOTP((isComplete, otp) => {
-                if (isComplete && otp === result.otp) {
-                    newVerifyBtn.style.display = 'block';
-                    console.log("ok otp")
-                } else {
-                    newVerifyBtn.style.display = 'none';
-                    console.log("wrong otp")
-                }
-            });
+                // Setup OTP input handling
+                setupOTP((isComplete, otp) => {
+                    if (isComplete) {
+                        newVerifyBtn.style.display = 'block';
+                        console.log("ok otp")
+                    } else {
+                        newVerifyBtn.style.display = 'none';
+                        console.log("wrong otp")
+                    }
+                });
+            }
+        } catch (error) {
+            // Show error message in the error div
+            document.getElementById('error').innerHTML = error.message || 'Failed to send OTP. Please try again.';
         }
     } else {
         console.log("Invalid email format");
@@ -182,16 +202,61 @@ async function restartfullsection() {
     inputs.forEach(input => {
         input.value = '';
     });
-    await sendotp()
+    // Clear previous error message
+    document.getElementById('error').innerHTML = '';
+    try {
+        await sendotp();
+    } catch (error) {
+        // Show error message in the error div
+        document.getElementById('error').innerHTML = error.message || 'Failed to resend OTP. Please try again.';
+    }
 }
 
 // write code for change pass word
-function submitotp() {
-    document.getElementById('forgotPasswordPopup').classList.remove('active');
-    document.getElementById('newpassword-popup').classList.add('active');
+async function submitotp() {
+    const usermail = document.querySelector('#forgetemail').value;
+    const inputs = document.querySelectorAll('.otp-digit');
+    const otp = Array.from(inputs).map(i => i.value).join('');
+    
+    if (!otp || otp.length !== 6) {
+        document.getElementById('error').innerHTML = "Please enter the complete 6-digit OTP";
+        return;
+    }
+    
+    try {
+        const response = await fetch('/user/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usermail, otp })
+        });
+        const result = await response.json();
+        
+        if (response.ok && result.status === true) {
+            // OTP verified successfully, show new password popup
+            document.getElementById('forgotPasswordPopup').classList.remove('active');
+            document.getElementById('newpassword-popup').classList.add('active');
+            document.getElementById('error').innerHTML = '';
+            
+            // Reset the forgot password form for next time
+            document.getElementById('otpSection').style.display = 'none';
+            document.getElementById('sendOtp').style.display = 'block';
+            document.getElementById('verifyOtp').style.display = 'none';
+            inputs.forEach(input => {
+                input.value = '';
+            });
+        } else {
+            document.getElementById('error').innerHTML = result.message || 'Invalid OTP';
+        }
+    } catch (error) {
+        document.getElementById('error').innerHTML = error.message || 'Failed to verify OTP. Please try again.';
+    }
 }
 document.getElementById('closePopupf').addEventListener('click', () => {
     document.getElementById('newpassword-popup').classList.remove('active');
+    // Reset the new password form
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+    document.getElementById('givemsg').innerHTML = 'Set New Password';
 });
 
 
@@ -234,7 +299,7 @@ async function savetodb(message, newpassword) {
     if (message === "all ok boss") {
         const usermail = document.querySelector('#forgetemail').value;
         // console.log(usermail, message, newpassword)
-        const response = await fetch('/cpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, newpassword }) })
+        const response = await fetch('/user/cpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usermail, newpassword}) })
         const result = await response.json();
         console.log('Server replied:', result.message);
         document.getElementById('givemsg').innerHTML = result.message;
@@ -261,3 +326,27 @@ toggleBtn.addEventListener("click", () => {
   // Change image based on state
   eyeIcon.src = isPassword ? "assits/closeeye.svg" : "assits/openey.svg";
 });
+
+// Eye button functionality for new password field
+const newPasswordInput = document.getElementById("newPassword");
+const toggleNewPasswordBtn = document.getElementById("toggleNewPassword");
+const eyeIconNew = document.getElementById("eyeicon-new");
+if (toggleNewPasswordBtn && newPasswordInput && eyeIconNew) {
+    toggleNewPasswordBtn.addEventListener("click", () => {
+        const isPassword = newPasswordInput.type === "password";
+        newPasswordInput.type = isPassword ? "text" : "password";
+        eyeIconNew.src = isPassword ? "assits/closeeye.svg" : "assits/openey.svg";
+    });
+}
+
+// Eye button functionality for confirm password field
+const confirmPasswordInput = document.getElementById("confirmPassword");
+const toggleConfirmPasswordBtn = document.getElementById("toggleConfirmPassword");
+const eyeIconConfirm = document.getElementById("eyeicon-confirm");
+if (toggleConfirmPasswordBtn && confirmPasswordInput && eyeIconConfirm) {
+    toggleConfirmPasswordBtn.addEventListener("click", () => {
+        const isPassword = confirmPasswordInput.type === "password";
+        confirmPasswordInput.type = isPassword ? "text" : "password";
+        eyeIconConfirm.src = isPassword ? "assits/closeeye.svg" : "assits/openey.svg";
+    });
+}

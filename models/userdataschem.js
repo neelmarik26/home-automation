@@ -39,9 +39,7 @@ const userdataschem = new mongoose.Schema({
     },
     deviceId: {
         type: String,
-        default: null,
-        unique: true,
-        sparse: true
+        default: null
     },
     deviceStatus: {
         type: String,

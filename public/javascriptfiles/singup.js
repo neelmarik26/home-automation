@@ -1,5 +1,20 @@
 console.log("pggram run success fully")
 
+// Eye button functionality for password visibility toggle
+const passwordInput = document.getElementById("password");
+const toggleBtn = document.getElementById("togglePassword");
+const eyeIcon = document.getElementById("eyeicon");
+
+if (toggleBtn && passwordInput && eyeIcon) {
+    toggleBtn.addEventListener("click", () => {
+        const isPassword = passwordInput.type === "password";
+        passwordInput.type = isPassword ? "text" : "password";
+        
+        // Change image based on state
+        eyeIcon.src = isPassword ? "assits/closeeye.svg" : "assits/openey.svg";
+    });
+}
+
 document.querySelector(".sub").addEventListener("click", (e) => {
     e.preventDefault();
 

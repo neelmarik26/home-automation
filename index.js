@@ -43,8 +43,8 @@ wssFrontend.on('connection', (ws, req) => {
 
         // Check if device is online for this user and send initial status
         const isOnline = isDeviceOnlineForUser(userId);
-        ws.send(JSON.stringify({ 
-            type: 'connected', 
+        ws.send(JSON.stringify({
+            type: 'connected',
             userId,
             espStatus: isOnline ? 'ONLINE' : 'OFFLINE'
         }));
@@ -93,21 +93,21 @@ app.get('/', (req, res) => {
     res.render('login.ejs')
 });
 app.get('/mainpage', (req, res) => {
-  res.render('mainpage.ejs')
+    res.render('mainpage.ejs')
 });
 app.get("/supage", (req, res) => {
-   res.render('singuppage.ejs')
+    res.render('singuppage.ejs')
 });
 
 const port = process.env.port || process.env.PORT || 3000;
 mongoose
-  .connect(process.env.mongodb_url)
-  .then(() => {
-    console.log('MongoDB connected successfully');
-    server.listen(port, () => {
-      console.log(`Server listening on port ${port}`);
+    .connect(process.env.mongodb_url)
+    .then(() => {
+        console.log('MongoDB connected successfully');
+        server.listen(port, () => {
+            console.log(`Server listening on port ${port}`);
+        });
+    })
+    .catch((error) => {
+        console.log('MongoDB connection error:', error);
     });
-  })
-  .catch((error) => {
-    console.log('MongoDB connection error:', error);
-  });
