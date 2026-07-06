@@ -10,8 +10,10 @@ const jwt = require('jsonwebtoken');
 
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const timerRoutes = require('./routes/timerRoutes');
 const { setupWebSocketServer } = require('./websocket/server');
 const { registerUser, removeUser, registerEspStatusListener, removeEspStatusListener, isDeviceOnlineForUser } = require('./websocket/connectionManager');
+const { loadActiveTimers } = require('./controllers/timerController');
 
 const app = express();
 const server = http.createServer();
@@ -119,6 +121,7 @@ server.on('request', app);
 
 app.use('/user', userRoutes);
 app.use('/admin', adminRoutes);
+app.use('/timer', timerRoutes);
 
 app.get('/', (req, res) => {
     res.render('login.ejs')
@@ -133,8 +136,9 @@ app.get("/supage", (req, res) => {
 const port = process.env.port || process.env.PORT || 3000;
 mongoose
     .connect(process.env.mongodb_url)
-    .then(() => {
+    .then(async () => {
         console.log('MongoDB connected successfully');
+        await loadActiveTimers();
         server.listen(port, () => {
             console.log(`Server listening on port ${port}`);
         });

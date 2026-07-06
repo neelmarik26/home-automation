@@ -1,7 +1,15 @@
 const mongoose = require("mongoose");
 
 const buttonSchema = new mongoose.Schema({
-  buttonName: String,
+  buttonName: String, 
+  customName: {
+    type: String,
+    default: null
+  },
+  customRoom: {
+    type: String,
+    default: null
+  },
   state: String,
   type: {
     type: String,

@@ -37,6 +37,10 @@ const userdataschem = new mongoose.Schema({
         enum: ['ACTIVE', 'BLOCKED'],
         default: 'ACTIVE'
     },
+    deletedAt: {
+        type: Date,
+        default: null
+    },
     deviceId: {
         type: String,
         default: null
