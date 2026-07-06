@@ -39,6 +39,12 @@ function connectUserWs() {
             const payload = JSON.parse(event.data);
             console.log('WS payload:', payload);
 
+            // Handle ping/pong for heartbeat
+            if (payload.type === 'ping') {
+                userWs.send(JSON.stringify({ type: 'pong' }));
+                return;
+            }
+
             if (payload.type === 'esp_status') {
                 updateEspStatusIndicator(payload.status);
             }
@@ -55,10 +61,13 @@ function connectUserWs() {
         }
     });
 
-    userWs.addEventListener('close', function () {
-        console.log('Frontend WebSocket disconnected');
+    userWs.addEventListener('close', function (event) {
+        console.log('Frontend WebSocket disconnected, code:', event.code, 'reason:', event.reason);
         userWs = null;
-        updateEspStatusIndicator('OFFLINE');
+        // Only show offline if it wasn't a clean close (code 1000) or normal reconnect
+        if (event.code !== 1000 && event.code !== 1001) {
+            updateEspStatusIndicator('OFFLINE');
+        }
         // Reconnect after 3 seconds
         setTimeout(connectUserWs, 3000);
     });

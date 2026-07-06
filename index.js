@@ -24,7 +24,37 @@ setupWebSocketServer(server);
 // Using noServer mode to handle upgrades manually
 const wssFrontend = new WebSocket.Server({ noServer: true });
 
+// Heartbeat for frontend connections
+const FRONTEND_HEARTBEAT_INTERVAL = 30000;
+setInterval(() => {
+    wssFrontend.clients.forEach((ws) => {
+        if (ws.isAlive === false) {
+            return ws.terminate();
+        }
+        ws.isAlive = false;
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+        }
+    });
+}, FRONTEND_HEARTBEAT_INTERVAL);
+
 wssFrontend.on('connection', (ws, req) => {
+    ws.isAlive = true;
+    
+    ws.on('pong', () => {
+        ws.isAlive = true;
+    });
+    
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message.toString());
+            if (data.type === 'pong') {
+                ws.isAlive = true;
+            }
+        } catch (e) {
+            // Ignore parse errors
+        }
+    });
     // Extract token from query string - use url.parse for compatibility
     const urlObj = new URL(req.url, `http://${req.headers.host}`);
     const token = urlObj.searchParams.get('token');
@@ -75,6 +105,7 @@ server.on('upgrade', (request, socket, head) => {
             wssFrontend.emit('connection', ws, request);
         });
     }
+    // Note: /ws is handled in websocket/server.js
 });
 
 app.use(cors());
