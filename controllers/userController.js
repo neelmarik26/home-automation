@@ -69,10 +69,12 @@ exports.registerUser = async (req, res) => {
     }
 
     const existingUser = await User.findOne({ email });
+    console.log('Existing user check:', existingUser);
     if (existingUser) {
+      console.log('User already registered:', existingUser);
       return res.status(409).json({ message: 'user is already registered' });
     }
-
+    console.log('faaaaaaa')
     const hashedPassword = await bcrypt.hash(password, 10);
     createdUser = await User.create({
       name: username,
@@ -101,6 +103,7 @@ exports.registerUser = async (req, res) => {
     }
 
     if (error.code === 11000) {
+      console.error('Duplicate key error:', error);
       return res.status(409).json({ message: 'user is already registered' });
     }
 
@@ -118,7 +121,7 @@ exports.loginUser = async (req, res) => {
 
     const existingUser = await User.findOne({ email });
     if (!existingUser) {
-      return res.status(404).json({ reply: 'no user found' });
+      return res.status(404).json({ message: 'no user found' });
     }
 
     if (existingUser.status === 'BLOCKED') {
@@ -165,7 +168,6 @@ exports.sendForgotPasswordOtp = async (req, res) => {
     }
 
     const otp = String(crypto.randomInt(100000, 1000000));
-    // console.log("Generated OTP is ==> " + otp);
     existingUser.passwordResetOtp = otp;
     existingUser.passwordResetOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await existingUser.save();
@@ -177,9 +179,46 @@ exports.sendForgotPasswordOtp = async (req, res) => {
       text: `welcome!,Your OTP code is: ${otp}`
     });
 
-    res.send({ status: true, message: "Email sent successfully", otp: otp })
+    res.send({ status: true, message: "Email sent successfully" })
   } catch (error) {
     return res.status(500).json({ status: false, message: 'failed to send otp', error: error.message });
+  }
+};
+
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { usermail, otp } = req.body;
+    
+    if (!usermail || !otp) {
+      return res.status(400).json({ message: 'email and otp are required' });
+    }
+
+    const existingUser = await User.findOne({ email: usermail });
+    if (!existingUser) {
+      return res.status(404).json({ message: 'user not found' });
+    }
+
+    // Check if OTP exists and is not expired
+    if (!existingUser.passwordResetOtp || !existingUser.passwordResetOtpExpiresAt) {
+      return res.status(400).json({ message: 'OTP not requested or expired' });
+    }
+
+    if (existingUser.passwordResetOtp !== otp) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    if (existingUser.passwordResetOtpExpiresAt < new Date()) {
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+
+    // OTP is valid, clear it and allow password reset
+    existingUser.passwordResetOtp = null;
+    existingUser.passwordResetOtpExpiresAt = null;
+    await existingUser.save();
+
+    res.json({ status: true, message: 'OTP verified successfully' });
+  } catch (error) {
+    return res.status(500).json({ message: 'failed to verify OTP', error: error.message });
   }
 };
 
