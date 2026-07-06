@@ -196,6 +196,33 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
           return;
         }
 
+        // Handle ping from server (application-level heartbeat)
+        if (doc.containsKey("type") && doc["type"] == "ping") {
+          wsClient.sendTXT("{\"type\":\"pong\"}");
+          return;
+        }
+
+        // Handle register_ack from server
+        if (doc.containsKey("type") && doc["type"] == "register_ack") {
+          Serial.println("[WS] Registration acknowledged");
+          return;
+        }
+
+        // Handle button_update from server (initial state sync)
+        if (doc.containsKey("type") && doc["type"] == "button_update") {
+          String button = doc["button"].as<String>();
+          int status = doc["status"].as<int>();
+
+          Serial.print("[SYNC] Button: "); Serial.print(button);
+          Serial.print(" -> "); Serial.println(status);
+
+          if (button == "btn1") setRelay(RELAY_1, status);
+          else if (button == "btn2") setRelay(RELAY_2, status);
+          else if (button == "btn3") setRelay(RELAY_3, status);
+          else if (button == "btn4") setRelay(RELAY_4, status);
+          return;
+        }
+
         Serial.println("[WS] Unknown JSON message");
       }
       break;
@@ -206,6 +233,21 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
 
     default:
       break;
+  }
+}
+
+// Add reconnection logic
+unsigned long lastReconnectAttempt = 0;
+const unsigned long RECONNECT_INTERVAL = 5000; // 5 seconds
+
+void checkWebSocketConnection() {
+  if (!wsClient.isConnected() && WiFi.status() == WL_CONNECTED) {
+    unsigned long now = millis();
+    if (now - lastReconnectAttempt > RECONNECT_INTERVAL) {
+      Serial.println("[WS] Attempting to reconnect...");
+      wsClient.begin(WS_HOST, WS_PORT, WS_PATH);
+      lastReconnectAttempt = now;
+    }
   }
 }
 
@@ -292,6 +334,9 @@ void loop() {
 
   // WebSocket handler - triggers our event callback
   wsClient.loop();
+
+  // Check and attempt WebSocket reconnection
+  checkWebSocketConnection();
 
   // LED indicator
   if (WiFi.status() == WL_CONNECTED) {

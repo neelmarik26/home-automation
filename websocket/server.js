@@ -12,20 +12,33 @@ const DeviceConnection = require('../models/DeviceConnection');
 function setupWebSocketServer(httpServer) {
     const wss = new WebSocket.Server({ noServer: true });
 
-    const HEARTBEAT_INTERVAL = 15000;  // 15 seconds
+    const HEARTBEAT_INTERVAL = 30000;  // 30 seconds (increased to reduce load)
+    const HEARTBEAT_TIMEOUT = 10000;   // 10 seconds to respond
 
     // Heartbeat check interval
     const heartbeatInterval = setInterval(() => {
         wss.clients.forEach((ws) => {
+            // Only check ESP device connections (has deviceId)
+            if (!ws.deviceId) return;
+            
+            // Initialize isAlive on first check if not set
+            if (ws.isAlive === undefined) {
+                ws.isAlive = true;
+            }
+            
             if (ws.isAlive === false) {
-                if (ws.deviceId) {
-                    handleDeviceDisconnect(ws.deviceId);
-                    removeDevice(ws.deviceId);
-                }
+                console.log(`Heartbeat timeout for device: ${ws.deviceId}`);
+                handleDeviceDisconnect(ws.deviceId);
+                removeDevice(ws.deviceId);
                 return ws.terminate();
             }
+            
             ws.isAlive = false;
-            ws.ping();
+            // Send application-level ping instead of protocol ping
+            // This works with WebSocketsClient library on ESP
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ping' }));
+            }
         });
     }, HEARTBEAT_INTERVAL);
 
@@ -65,10 +78,6 @@ function setupWebSocketServer(httpServer) {
         console.log('Headers:', req.headers);
         ws.isAlive = true;
 
-        ws.on('pong', () => {
-            ws.isAlive = true;
-        });
-
         ws.on('message', async (message) => {
             let data;
             try {
@@ -81,6 +90,13 @@ function setupWebSocketServer(httpServer) {
                 }
             } catch (e) {
                 console.error('Error parsing message:', e);
+                return;
+            }
+
+            // Handle pong response from ESP (application-level)
+            if (data.type === 'pong') {
+                ws.isAlive = true;
+                if (ws.deviceId) updateHeartbeat(ws.deviceId);
                 return;
             }
 
@@ -108,15 +124,30 @@ function setupWebSocketServer(httpServer) {
                     await User.findByIdAndUpdate(data.userId, { deviceStatus: 'ONLINE', deviceId: data.deviceId });
 
                     // Send current button states
-                    const buttons = await ButtonState.find({ userId: data.userId, type: 'USER' });
+                    let buttons = await ButtonState.find({ userId: data.userId, type: 'USER' });
+                    
+                    // If no button states exist, create defaults (all OFF)
+                    if (buttons.length === 0) {
+                        console.log(`No button states found for user ${data.userId}, creating defaults`);
+                        const defaultButtons = ['btn1', 'btn2', 'btn3', 'btn4'];
+                        const createPromises = defaultButtons.map(btn => 
+                            ButtonState.findOneAndUpdate(
+                                { userId: data.userId, buttonName: btn, type: 'USER' },
+                                { state: '0', timestamp: Date.now() },
+                                { upsert: true, new: true }
+                            )
+                        );
+                        buttons = await Promise.all(createPromises);
+                    }
+                    
                     const buttonStates = {};
                     buttons.forEach(b => { buttonStates[b.buttonName] = parseInt(b.state); });
 
-                    // // Send register_ack first
-                    // ws.send(JSON.stringify({
-                    //     type: 'register_ack',
-                    //     status: 'ok'
-                    // }));
+                    // Send register_ack first
+                    ws.send(JSON.stringify({
+                        type: 'register_ack',
+                        status: 'ok'
+                    }));
 
                     // Send each button state in the requested format
                     for (const [button, status] of Object.entries(buttonStates)) {
@@ -134,13 +165,6 @@ function setupWebSocketServer(httpServer) {
                     console.error('Registration error:', err);
                     ws.send(JSON.stringify({ type: 'error', message: 'Registration failed' }));
                 }
-                return;
-            }
-
-            // Handle ping
-            if (data.type === 'ping' || data.raw === 'ping') {
-                ws.send(JSON.stringify({ type: 'pong' }));
-                if (ws.deviceId) updateHeartbeat(ws.deviceId);
                 return;
             }
 
