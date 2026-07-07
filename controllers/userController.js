@@ -44,6 +44,8 @@ function createToken(user) {
 async function seedDefaultButtons(userId) {
   const defaultButtons = ['btn1', 'btn2', 'btn3', 'btn4'].map((buttonName) => ({
     buttonName,
+    customName: null,
+    customRoom: null,
     state: '0',
     type: 'USER',
     userId,
@@ -313,3 +315,89 @@ exports.updateButtonStatusByUser = async (req, res) => {
     return res.status(500).json({ message: 'failed to update button status', error: error.message });
   }
 };
+
+exports.getDeviceNames = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'unauthorized' });
+    }
+
+    const buttons = await ButtonState.find({
+      userId,
+      type: 'USER',
+    }).sort({ buttonName: 1 });
+
+    const deviceNames = {};
+    const deviceRooms = {};
+    buttons.forEach(btn => {
+      deviceNames[btn.buttonName] = btn.customName || getDefaultDeviceName(btn.buttonName);
+      deviceRooms[btn.buttonName] = btn.customRoom || getDefaultDeviceRoom(btn.buttonName);
+    });
+
+    return res.json({ deviceNames, deviceRooms });
+  } catch (error) {
+    return res.status(500).json({ message: 'failed to fetch device names', error: error.message });
+  }
+};
+
+exports.updateDeviceName = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { buttonName, customName, customRoom } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'unauthorized' });
+    }
+
+    if (!buttonName || (!customName && !customRoom)) {
+      return res.status(400).json({ message: 'buttonName and at least one of customName or customRoom are required' });
+    }
+
+    const updateData = {};
+    if (customName !== undefined) updateData.customName = customName.trim();
+    if (customRoom !== undefined) updateData.customRoom = customRoom.trim();
+
+    const updatedButton = await ButtonState.findOneAndUpdate(
+      {
+        buttonName,
+        userId,
+        type: 'USER',
+      },
+      updateData,
+      { new: true }
+    );
+
+    if (!updatedButton) {
+      return res.status(404).json({ message: 'button not found' });
+    }
+
+    return res.json({
+      message: 'device name updated successfully',
+      button: updatedButton,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'failed to update device name', error: error.message });
+  }
+};
+
+function getDefaultDeviceName(buttonName) {
+  const defaults = {
+    'btn1': 'Room 1 Light',
+    'btn2': 'Room 2 Light',
+    'btn3': 'Dining Light',
+    'btn4': 'Dining Fan'
+  };
+  return defaults[buttonName] || buttonName;
+}
+
+function getDefaultDeviceRoom(buttonName) {
+  const defaults = {
+    'btn1': 'Bedroom',
+    'btn2': 'Bedroom 2',
+    'btn3': 'Dining Room',
+    'btn4': 'Dining Room'
+  };
+  return defaults[buttonName] || '';
+}

@@ -57,7 +57,8 @@ document.querySelector(".sub").addEventListener("click", (e) => {
 
     } catch (error) {
         console.error("Error:", error.message);
-        alert("An error occurred: " + error.message);
+        const mydiv = document.getElementById('mydiv');
+        mydiv.innerHTML = `<div class="message"><div class="mbox">An error occurred. Please try again.</div> `;
     }
 });
 async function senddata(data) {
