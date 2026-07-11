@@ -4,17 +4,17 @@ const jwt = require('jsonwebtoken');
 const WebSocket = require('ws');
 const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
-  service: "gmail", // or another email provider
+  service: "gmail",
   auth: {
-    user: process.env.email, // your email address
-    pass: process.env.email_password // NOT your normal Gmail password
+    user: process.env.email,
+    pass: process.env.email_password
   }
 });
 
 
 const User = require('../models/userdataschem');
 const ButtonState = require('../models/LAST5BUTTON');
-const { getEspWebSocket } = require('../websocket/connectionManager');
+const { getEspWebSocket, notifyButtonChange } = require('../websocket/connectionManager');
 
 function isStrongPassword(password) {
   return (
@@ -306,6 +306,9 @@ exports.updateButtonStatusByUser = async (req, res) => {
         status: parseInt(updatedButton.state)
       }));
     }
+
+    // Broadcast button change to all frontend clients (other tabs/users on same account)
+    notifyButtonChange(userId, updatedButton.buttonName, parseInt(updatedButton.state));
 
     return res.json({
       message: 'button status updated successfully',

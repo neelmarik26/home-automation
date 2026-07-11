@@ -80,7 +80,7 @@
                         <div class="toggle-wrap">
                             <div class="toggle-knob"></div>
                         </div>
-                        <button class="timer-btn" id="timerBtn1" onclick="openTimerPopup('btn1', 1)" title="Set Timer">
+                        <button class="timer-btn" id="timerBtn1" onclick="event.stopPropagation(); openTimerPopup('btn1', 1)" title="Set Timer">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         </button>
                     </div>
@@ -101,7 +101,7 @@
                         <div class="toggle-wrap">
                             <div class="toggle-knob"></div>
                         </div>
-                        <button class="timer-btn" id="timerBtn2" onclick="openTimerPopup('btn2', 2)" title="Set Timer">
+                        <button class="timer-btn" id="timerBtn2" onclick="event.stopPropagation(); openTimerPopup('btn2', 2)" title="Set Timer">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         </button>
                     </div>
@@ -122,7 +122,7 @@
                         <div class="toggle-wrap">
                             <div class="toggle-knob"></div>
                         </div>
-                        <button class="timer-btn" id="timerBtn3" onclick="openTimerPopup('btn3', 3)" title="Set Timer">
+                        <button class="timer-btn" id="timerBtn3" onclick="event.stopPropagation(); openTimerPopup('btn3', 3)" title="Set Timer">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         </button>
                     </div>
@@ -143,7 +143,7 @@
                         <div class="toggle-wrap">
                             <div class="toggle-knob"></div>
                         </div>
-                        <button class="timer-btn" id="timerBtn4" onclick="openTimerPopup('btn4', 4)" title="Set Timer">
+                        <button class="timer-btn" id="timerBtn4" onclick="event.stopPropagation(); openTimerPopup('btn4', 4)" title="Set Timer">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         </button>
                     </div>
@@ -244,29 +244,6 @@
             </div>
         </div>
 
-        <!-- ── Admin Change WiFi Popup ── -->
-        <div class="wifipass" id="wifipass">
-            <div class="wifi-box">
-                <div class="wifi-header">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="2"><path d="M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg>
-                    <span id="wifipassheding">Change ESP WiFi Credentials</span>
-                </div>
-                <div class="wifi-body">
-                    <label class="wifi-label" for="ssid">Network Name (SSID)</label>
-                    <input type="text" id="ssid" class="wifi-input" placeholder="Enter new SSID" required>
-                    <label class="wifi-label" for="ssidpasspassword">Password</label>
-                    <input type="password" id="ssidpasspassword" class="wifi-input" placeholder="Enter new password" required>
-                    <div class="wifi-actions">
-                        <button class="wifi-btn primary" id="changewifi">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
-                            Update WiFi
-                        </button>
-                        <button class="wifi-btn cancel" type="button" onclick="closeWifiPopup()">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- ── Device Names Settings Popup ── -->
         <div class="wifipass" id="deviceNamesPopup">
             <div class="wifi-box" style="max-width:560px;">
@@ -341,24 +318,63 @@
                     </div>
                 </div>
 
-                <!-- Duration Presets -->
-                <div class="timer-presets" id="timerPresets">
-                    <div class="wifi-label">Duration</div>
-                    <div class="timer-preset-btns">
-                        <button class="timer-preset" data-minutes="5" onclick="setTimerDuration(5)">5m</button>
-                        <button class="timer-preset" data-minutes="15" onclick="setTimerDuration(15)">15m</button>
-                        <button class="timer-preset" data-minutes="30" onclick="setTimerDuration(30)">30m</button>
-                        <button class="timer-preset" data-minutes="60" onclick="setTimerDuration(60)">1h</button>
+                <!-- Timer Mode Toggle -->
+                <div class="timer-mode-toggle">
+                    <button class="timer-mode-btn active" id="timerModeDuration" onclick="setTimerMode('duration')">Duration</button>
+                    <button class="timer-mode-btn" id="timerModeDateTime" onclick="setTimerMode('datetime')">Date & Time</button>
+                </div>
+
+                <!-- Duration Section -->
+                <div id="timerDurationSection">
+                    <!-- Duration Presets -->
+                    <div class="timer-presets" id="timerPresets">
+                        <div class="wifi-label">Duration</div>
+                        <div class="timer-preset-btns">
+                            <button class="timer-preset" data-minutes="5" onclick="setTimerDuration(5)">5m</button>
+                            <button class="timer-preset" data-minutes="15" onclick="setTimerDuration(15)">15m</button>
+                            <button class="timer-preset" data-minutes="30" onclick="setTimerDuration(30)">30m</button>
+                            <button class="timer-preset" data-minutes="60" onclick="setTimerDuration(60)">1h</button>
+                        </div>
+                    </div>
+
+                    <!-- Custom Duration -->
+                    <div class="timer-custom-row" id="timerCustomRow">
+                        <div class="timer-custom-input-wrap">
+                            <input type="number" id="timerCustomMinutes" class="wifi-input" placeholder="Custom" min="1" max="1440">
+                            <span class="timer-custom-label">min</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Custom Duration -->
-                <div class="timer-custom-row" id="timerCustomRow">
-                    <div class="timer-custom-input-wrap">
-                        <input type="number" id="timerCustomMinutes" class="wifi-input" placeholder="Custom" min="1" max="1440">
-                        <span class="timer-custom-label">min</span>
+                <!-- Date/Time Section (Hidden by default) -->
+                <div id="timerDateTimeSection" style="display:none;">
+                    <div class="wifi-label">Select Date & Time</div>
+                    <div class="timer-datetime-row">
+                        <div class="timer-date-wrap">
+                            <div class="timer-date-display" id="timerDateDisplay" onclick="openDatePicker()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span id="timerDateText">Select date</span>
+                            </div>
+                        </div>
+                        <div class="timer-time-wrap">
+                            <input type="time" id="timerTimeInput" class="wifi-input timer-datetime-input">
+                        </div>
                     </div>
-                    <div class="timer-action-btns">
+                    <!-- Custom Calendar -->
+                    <div class="timer-calendar" id="timerCalendar" style="display:none;">
+                        <div class="calendar-header">
+                            <button class="calendar-nav" onclick="changeMonth(-1)">&lt;</button>
+                            <span id="calendarMonthYear"></span>
+                            <button class="calendar-nav" onclick="changeMonth(1)">&gt;</button>
+                        </div>
+                        <div class="calendar-weekdays">
+                            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                        </div>
+                        <div class="calendar-days" id="calendarDays"></div>
+                    </div>
+                </div>
+
+                <div class="timer-action-btns">
                         <button class="timer-action-btn" id="timerActionOn" onclick="setTimerAction('ON')">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 017 7c0 2.5-1.3 4.7-3.3 6H8.3A7 7 0 0112 2z"/></svg>
                             Turn ON

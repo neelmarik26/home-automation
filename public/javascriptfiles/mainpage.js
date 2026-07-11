@@ -202,6 +202,19 @@ function connectUserWs() {
             if (payload.type === 'esp_status') {
                 updateEspStatusIndicator(payload.status);
             }
+            if (payload.type === 'button_update') {
+                // Sync button state from other clients/users
+                const btnName = payload.buttonName; // e.g. 'btn1'
+                const state = payload.state;      // 0 or 1
+                const cardNum = BTN_TO_CARD[btnName];
+                if (cardNum) {
+                    const card = document.getElementById('card' + cardNum);
+                    const button = document.getElementById('buttonid' + cardNum);
+                    if (card && button) {
+                        setCardState(card, button, state === 1);
+                    }
+                }
+            }
             if (payload.type === 'connected') {
                 if (payload.espStatus) {
                     updateEspStatusIndicator(payload.espStatus);
@@ -369,14 +382,6 @@ document.getElementById('logout').addEventListener('click', function () {
 ───────────────────────────────────────────────*/
 function closePopup() {
     document.getElementById('popup').classList.remove('open');
-}
-
-function closeWifiPopup() {
-    document.getElementById('wifipass').classList.remove('open');
-}
-
-function changeespwifi() {
-    document.getElementById('wifipass').classList.add('open');
 }
 
 /* ─────────────────────────────────────────────
@@ -841,6 +846,10 @@ let timerCardNum = null;     // currently open popup card number
 let timerDuration = 0;
 let timerAction = null;
 let timerIntervalId = null;  // interval for live countdown in popup
+let timerMode = 'duration';  // 'duration' or 'datetime'
+let timerTargetDate = null;  // Custom date for datetime mode
+let calendarVisible = false;
+let calendarCurrentDate = new Date();
 
 // Button name to card number mapping
 const BTN_TO_CARD = { btn1: 1, btn2: 2, btn3: 3, btn4: 4 };
@@ -984,6 +993,8 @@ function openTimerPopup(buttonName, cardNum) {
     timerCardNum = cardNum;
     timerDuration = 0;
     timerAction = null;
+    timerMode = 'duration';
+    timerTargetDate = null;
 
     // Update popup title with device name
     const card = document.getElementById('card' + cardNum);
@@ -1000,6 +1011,26 @@ function openTimerPopup(buttonName, cardNum) {
     document.getElementById('timerSummary').classList.remove('active');
     document.getElementById('timerSummaryText').textContent = 'Select a duration and action';
 
+    // Reset mode toggle
+    document.getElementById('timerModeDuration').classList.add('active');
+    document.getElementById('timerModeDateTime').classList.remove('active');
+    document.getElementById('timerDurationSection').style.display = '';
+    document.getElementById('timerDateTimeSection').style.display = 'none';
+
+    // Reset datetime inputs
+    timerTargetDate = null;
+    calendarVisible = false;
+    calendarCurrentDate = new Date();
+    document.getElementById('timerDateText').textContent = 'Select date';
+    document.getElementById('timerDateDisplay').classList.remove('has-date');
+    const now = new Date();
+    now.setMinutes(Math.ceil(now.getMinutes() / 5) * 5); // Round to next 5 min
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    document.getElementById('timerTimeInput').value = `${hours}:${minutes}`;
+    document.getElementById('timerTimeInput').min = `${hours}:${minutes}`;
+    document.getElementById('timerCalendar').style.display = 'none';
+
     // Check if this card has an active timer
     const activeTimer = Object.values(activeTimers).find(t => CARD_TO_BTN[cardNum] === t.buttonName);
 
@@ -1008,9 +1039,10 @@ function openTimerPopup(buttonName, cardNum) {
         document.getElementById('timerActiveInfo').style.display = '';
         document.getElementById('startTimerBtn').style.display = 'none';
         document.getElementById('cancelTimerBtn').style.display = '';
-        document.getElementById('timerPresets').style.display = 'none';
-        document.getElementById('timerCustomRow').style.display = 'none';
+        document.getElementById('timerDurationSection').style.display = 'none';
+        document.getElementById('timerDateTimeSection').style.display = 'none';
         document.getElementById('timerSummary').style.display = 'none';
+        document.getElementById('timerModeDuration').parentElement.style.display = 'none';
 
         // Start live countdown in popup
         if (timerIntervalId) clearInterval(timerIntervalId);
@@ -1030,12 +1062,33 @@ function openTimerPopup(buttonName, cardNum) {
         document.getElementById('timerActiveInfo').style.display = 'none';
         document.getElementById('startTimerBtn').style.display = '';
         document.getElementById('cancelTimerBtn').style.display = 'none';
-        document.getElementById('timerPresets').style.display = '';
-        document.getElementById('timerCustomRow').style.display = '';
+        document.getElementById('timerDurationSection').style.display = '';
         document.getElementById('timerSummary').style.display = '';
+        document.getElementById('timerModeDuration').parentElement.style.display = '';
     }
 
     document.getElementById('timerPopup').classList.add('open');
+}
+
+function setTimerMode(mode) {
+    timerMode = mode;
+    timerDuration = 0;
+    timerTargetDate = null;
+    document.getElementById('timerCustomMinutes').value = '';
+    document.querySelectorAll('.timer-preset').forEach(b => b.classList.remove('selected'));
+
+    if (mode === 'duration') {
+        document.getElementById('timerModeDuration').classList.add('active');
+        document.getElementById('timerModeDateTime').classList.remove('active');
+        document.getElementById('timerDurationSection').style.display = '';
+        document.getElementById('timerDateTimeSection').style.display = 'none';
+    } else {
+        document.getElementById('timerModeDuration').classList.remove('active');
+        document.getElementById('timerModeDateTime').classList.add('active');
+        document.getElementById('timerDurationSection').style.display = 'none';
+        document.getElementById('timerDateTimeSection').style.display = '';
+    }
+    updateTimerSummary();
 }
 
 function updatePopupCountdown(timer) {
@@ -1056,6 +1109,104 @@ function updatePopupCountdown(timer) {
         `${CARD_TO_BTN[timerCardNum]} will turn ${timer.action}`;
 }
 
+// Custom Calendar Functions
+function openDatePicker() {
+    const calendar = document.getElementById('timerCalendar');
+    calendarVisible = !calendarVisible;
+    calendar.style.display = calendarVisible ? 'block' : 'none';
+
+    if (calendarVisible) {
+        renderCalendar();
+    }
+}
+
+function renderCalendar() {
+    const year = calendarCurrentDate.getFullYear();
+    const month = calendarCurrentDate.getMonth();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+
+    document.getElementById('calendarMonthYear').textContent = `${monthNames[month]} ${year}`;
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const container = document.getElementById('calendarDays');
+    container.innerHTML = '';
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'calendar-day empty';
+        container.appendChild(empty);
+    }
+
+    // Days
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const dayEl = document.createElement('div');
+        dayEl.className = 'calendar-day';
+        dayEl.textContent = day;
+
+        // Check if past date
+        if (date < today) {
+            dayEl.classList.add('disabled');
+        } else {
+            // Check if selected
+            if (timerTargetDate) {
+                const selectedDate = new Date(timerTargetDate);
+                if (date.toDateString() === selectedDate.toDateString()) {
+                    dayEl.classList.add('selected');
+                }
+            }
+            dayEl.onclick = () => selectDate(year, month, day);
+        }
+
+        // Mark today
+        if (date.toDateString() === today.toDateString()) {
+            dayEl.classList.add('today');
+        }
+
+        container.appendChild(dayEl);
+    }
+}
+
+function selectDate(year, month, day) {
+    timerTargetDate = new Date(year, month, day);
+    const dateDisplay = document.getElementById('timerDateDisplay');
+    const dateText = document.getElementById('timerDateText');
+
+    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+    dateText.textContent = timerTargetDate.toLocaleDateString('en-US', options);
+    dateDisplay.classList.add('has-date');
+
+    document.getElementById('timerCalendar').style.display = 'none';
+    calendarVisible = false;
+
+    // Set min time if today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (timerTargetDate.toDateString() === today.toDateString()) {
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = Math.ceil(now.getMinutes() / 5) * 5; // Round to next 5 min
+        const timeInput = document.getElementById('timerTimeInput');
+        timeInput.min = `${hours}:${minutes.toString().padStart(2, '0')}`;
+    } else {
+        document.getElementById('timerTimeInput').removeAttribute('min');
+    }
+
+    updateTimerSummary();
+}
+
+function changeMonth(delta) {
+    calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() + delta);
+    renderCalendar();
+}
+
 function closeTimerPopup() {
     document.getElementById('timerPopup')?.classList.remove('open');
     if (timerIntervalId) {
@@ -1065,6 +1216,8 @@ function closeTimerPopup() {
     timerCardNum = null;
     timerDuration = 0;
     timerAction = null;
+    timerMode = 'duration';
+    timerTargetDate = null;
 }
 
 function setTimerDuration(minutes) {
@@ -1087,19 +1240,33 @@ function updateTimerSummary() {
     const summaryEl = document.getElementById('timerSummary');
     const textEl = document.getElementById('timerSummaryText');
 
-    if (!timerDuration || !timerAction) {
-        summaryEl.classList.remove('active');
-        textEl.textContent = 'Select a duration and action';
-        return;
+    if (timerMode === 'duration') {
+        if (!timerDuration || !timerAction) {
+            summaryEl.classList.remove('active');
+            textEl.textContent = 'Select a duration and action';
+            return;
+        }
+        const actionText = timerAction === 'ON' ? 'turn ON' : 'turn OFF';
+        summaryEl.classList.add('active');
+        textEl.textContent = `Will ${actionText} after ${timerDuration} minute${timerDuration > 1 ? 's' : ''}`;
+    } else {
+        // datetime mode
+        const timeInput = document.getElementById('timerTimeInput');
+        if (!timerTargetDate || !timeInput?.value || !timerAction) {
+            summaryEl.classList.remove('active');
+            textEl.textContent = 'Select a date, time and action';
+            return;
+        }
+        const actionText = timerAction === 'ON' ? 'turn ON' : 'turn OFF';
+        const dateOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+        const dateStr = timerTargetDate.toLocaleDateString('en-US', dateOptions);
+        const timeStr = timeInput.value;
+        summaryEl.classList.add('active');
+        textEl.textContent = `Will ${actionText} on ${dateStr} at ${timeStr}`;
     }
-
-    const m = timerDuration;
-    const actionText = timerAction === 'ON' ? 'turn ON' : 'turn OFF';
-    summaryEl.classList.add('active');
-    textEl.textContent = `Will ${actionText} after ${m} minute${m > 1 ? 's' : ''}`;
 }
 
-// Listen to custom minutes input
+// Listen to custom minutes input and datetime inputs
 document.addEventListener('DOMContentLoaded', function () {
     const customInput = document.getElementById('timerCustomMinutes');
     if (customInput) {
@@ -1112,14 +1279,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    const timeInput = document.getElementById('timerTimeInput');
+    if (timeInput) {
+        timeInput.addEventListener('change', updateTimerSummary);
+    }
 });
 
 async function startTimer() {
-    if (!timerDuration || !timerAction || !timerCardNum) {
-        openCustomAlert('Error', 'Please select a duration and action.', 'error');
-        return;
-    }
-
     const card = document.getElementById('card' + timerCardNum);
     const buttonId = card?.dataset?.buttonId;
     const buttonName = 'btn' + timerCardNum;
@@ -1129,16 +1296,45 @@ async function startTimer() {
         return;
     }
 
+    if (!timerAction) {
+        openCustomAlert('Error', 'Please select an action (ON or OFF).', 'error');
+        return;
+    }
+
+    let payload = {
+        buttonId,
+        buttonName,
+        action: timerAction,
+    };
+
+    if (timerMode === 'duration') {
+        if (!timerDuration) {
+            openCustomAlert('Error', 'Please select a duration.', 'error');
+            return;
+        }
+        payload.durationMinutes = timerDuration;
+    } else {
+        // datetime mode
+        const timeInput = document.getElementById('timerTimeInput');
+        if (!timerTargetDate || !timeInput?.value) {
+            openCustomAlert('Error', 'Please select a date and time.', 'error');
+            return;
+        }
+        const [hours, minutes] = timeInput.value.split(':');
+        const targetDateTime = new Date(timerTargetDate);
+        targetDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        if (targetDateTime <= new Date()) {
+            openCustomAlert('Error', 'Selected date/time must be in the future.', 'error');
+            return;
+        }
+        payload.targetTime = targetDateTime.toISOString();
+    }
+
     try {
         const response = await fetch('/timer/create', {
             method: 'POST',
             headers: authHeaders(),
-            body: JSON.stringify({
-                buttonId,
-                buttonName,
-                action: timerAction,
-                durationMinutes: timerDuration,
-            })
+            body: JSON.stringify(payload)
         });
 
         const result = await response.json();
@@ -1146,7 +1342,10 @@ async function startTimer() {
         if (response.ok) {
             const t = result.timer;
             closeTimerPopup();
-            openCustomAlert('Timer Set', `${buttonName} will turn ${t.action} in ${t.durationMinutes} min.`, 'info');
+            const summary = timerMode === 'duration'
+                ? `${buttonName} will turn ${t.action} in ${t.durationMinutes} min.`
+                : `${buttonName} will turn ${t.action} at ${new Date(t.targetTime).toLocaleString()}`;
+            openCustomAlert('Timer Set', summary, 'info');
             startTimerCountdown(t.id, buttonName, t.action, t.remainingMs);
             updateStatusBarTimer();
         } else {

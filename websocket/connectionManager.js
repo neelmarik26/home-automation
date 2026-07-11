@@ -103,6 +103,22 @@ function notifyEspStatusChange(userId, deviceId, status) {
     }
 }
 
+function notifyButtonChange(userId, buttonName, state) {
+    const listeners = userEspStatusListeners.get(userId);
+    if (listeners) {
+        const message = JSON.stringify({
+            type: 'button_update',
+            buttonName,
+            state
+        });
+        for (const ws of listeners) {
+            if (ws.readyState === 1) { // WebSocket.OPEN
+                ws.send(message);
+            }
+        }
+    }
+}
+
 // Cleanup stale connections periodically
 function cleanupStaleConnections() {
     const now = Date.now();
@@ -142,5 +158,6 @@ module.exports = {
     getDeviceConnections,
     getUserEspStatusListeners,
     notifyEspStatusChange,
+    notifyButtonChange,
     isDeviceOnlineForUser
 };
