@@ -6,10 +6,10 @@ const wifiController = require('../controllers/wifiController');
 
 const router = express.Router();
 
-router.post(['/register', '/newuser'], userController.registerUser);
-router.post(['/login', '/olduser'], userController.loginUser);
-router.get(['/button-status', '/getbuttonstatus'], decodeJwtToken, userController.getButtonStatusByUser);
-router.put(['/button-status/:buttonId'], decodeJwtToken, userController.updateButtonStatusByUser);
+router.post('/register', userController.registerUser);
+router.post('/login', userController.loginUser);
+router.get('/button-status', decodeJwtToken, userController.getButtonStatusByUser);
+router.put('/button-status/:buttonId', decodeJwtToken, userController.updateButtonStatusByUser);
 router.get('/device-names', decodeJwtToken, userController.getDeviceNames);
 router.put('/device-names', decodeJwtToken, userController.updateDeviceName);
 router.post('/wifi-data', decodeJwtToken, wifiController.storeWifiData);

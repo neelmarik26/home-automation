@@ -2,7 +2,7 @@ const schedule = require('node-schedule');
 const WebSocket = require('ws');
 const Timer = require('../models/Timer');
 const ButtonState = require('../models/LAST5BUTTON');
-const { getEspWebSocket } = require('../websocket/connectionManager');
+const { getEspWebSocket, notifyButtonChange } = require('../websocket/connectionManager');
 
 // In-memory map: timerId -> scheduledJob
 const scheduledJobs = new Map();
@@ -45,6 +45,9 @@ async function executeTimer(timerDoc) {
         status: timerDoc.action === 'ON' ? 1 : 0,
       }));
     }
+
+    // Broadcast button change to all frontend clients
+    notifyButtonChange(timerDoc.userId, timerDoc.buttonName, timerDoc.action === 'ON' ? 1 : 0);
   } catch (error) {
     console.error('Timer execution error:', error);
   }
@@ -73,15 +76,15 @@ exports.loadActiveTimers = loadActiveTimers;
 exports.createTimer = async (req, res) => {
   try {
     const userId = req.user?.id;
-    const { buttonId, buttonName, action, durationMinutes } = req.body;
+    const { buttonId, buttonName, action, durationMinutes, targetTime: targetTimeStr } = req.body;
 
     if (!userId) {
       return res.status(401).json({ message: 'unauthorized' });
     }
 
-    if (!buttonId || !buttonName || !action || !durationMinutes) {
+    if (!buttonId || !buttonName || !action) {
       return res.status(400).json({
-        message: 'buttonId, buttonName, action, and durationMinutes are required',
+        message: 'buttonId, buttonName, and action are required',
       });
     }
 
@@ -89,8 +92,28 @@ exports.createTimer = async (req, res) => {
       return res.status(400).json({ message: 'action must be ON or OFF' });
     }
 
-    if (durationMinutes < 1 || durationMinutes > 1440) {
-      return res.status(400).json({ message: 'duration must be between 1 and 1440 minutes' });
+    let targetTime;
+    let durationMins;
+
+    if (targetTimeStr) {
+      // Custom date/time mode
+      targetTime = new Date(targetTimeStr);
+      if (isNaN(targetTime.getTime())) {
+        return res.status(400).json({ message: 'invalid target time' });
+      }
+      if (targetTime <= new Date()) {
+        return res.status(400).json({ message: 'target time must be in the future' });
+      }
+      durationMins = Math.round((targetTime.getTime() - Date.now()) / 60000);
+    } else if (durationMinutes) {
+      // Duration mode
+      if (durationMinutes < 1 || durationMinutes > 1440) {
+        return res.status(400).json({ message: 'duration must be between 1 and 1440 minutes' });
+      }
+      targetTime = new Date(Date.now() + durationMinutes * 60 * 1000);
+      durationMins = durationMinutes;
+    } else {
+      return res.status(400).json({ message: 'either durationMinutes or targetTime is required' });
     }
 
     // Cancel any existing active timer for the same button
@@ -109,14 +132,12 @@ exports.createTimer = async (req, res) => {
       await existingActive.save();
     }
 
-    const targetTime = new Date(Date.now() + durationMinutes * 60 * 1000);
-
     const timerDoc = await Timer.create({
       userId,
       buttonId,
       buttonName,
       action,
-      durationMinutes,
+      durationMinutes: durationMins,
       targetTime,
       status: 'ACTIVE',
     });
