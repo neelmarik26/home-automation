@@ -33,10 +33,6 @@ async function callmainpage(result) {
     window.location.href = '/mainpage';
 }
 
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
 document.querySelector('#login').addEventListener('click', (event) => {
     event.preventDefault();
     const emailinput = document.querySelector('#emailinput');

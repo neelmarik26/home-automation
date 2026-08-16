@@ -1,7 +1,9 @@
 // In-memory connection registries
 const deviceConnections = new Map();  // deviceId -> { ws, userId, lastHeartbeat }
-const userConnections = new Map();     // userId -> { ws }
+const userConnections = new Map();     // userId -> { ws, lastHeartbeat }
 const userEspStatusListeners = new Map();  // userId -> Set of WebSocket clients
+
+const DeviceConnection = require('../models/DeviceConnection');
 
 function registerDevice(deviceId, userId, ws) {
     deviceConnections.set(deviceId, { ws, userId, lastHeartbeat: Date.now() });
@@ -49,9 +51,20 @@ function removeEspStatusListener(userId, ws) {
     }
 }
 
-function updateHeartbeat(deviceId) {
+async function updateHeartbeat(deviceId) {
     const conn = deviceConnections.get(deviceId);
-    if (conn) conn.lastHeartbeat = Date.now();
+    if (conn) {
+        conn.lastHeartbeat = Date.now();
+        // Also update database
+        try {
+            await DeviceConnection.findOneAndUpdate(
+                { deviceId },
+                { lastHeartbeat: Date.now() }
+            );
+        } catch (err) {
+            console.error('Error updating heartbeat in DB:', err);
+        }
+    }
 }
 
 function getDeviceConnection(deviceId) {
@@ -90,6 +103,47 @@ function notifyEspStatusChange(userId, deviceId, status) {
     }
 }
 
+function notifyButtonChange(userId, buttonName, state) {
+    const listeners = userEspStatusListeners.get(userId);
+    if (listeners) {
+        const message = JSON.stringify({
+            type: 'button_update',
+            buttonName,
+            state
+        });
+        for (const ws of listeners) {
+            if (ws.readyState === 1) { // WebSocket.OPEN
+                ws.send(message);
+            }
+        }
+    }
+}
+
+// Cleanup stale connections periodically
+function cleanupStaleConnections() {
+    const now = Date.now();
+    const STALE_THRESHOLD = 60000; // 60 seconds
+    
+    // Clean up stale device connections
+    for (const [deviceId, conn] of deviceConnections) {
+        if (now - conn.lastHeartbeat > STALE_THRESHOLD) {
+            console.log(`Cleaning up stale device connection: ${deviceId}`);
+            deviceConnections.delete(deviceId);
+        }
+    }
+    
+    // Clean up stale user connections
+    for (const [userId, conn] of userConnections) {
+        if (now - conn.lastHeartbeat > STALE_THRESHOLD) {
+            console.log(`Cleaning up stale user connection: ${userId}`);
+            userConnections.delete(userId);
+        }
+    }
+}
+
+// Start cleanup interval
+setInterval(cleanupStaleConnections, 30000); // Every 30 seconds
+
 module.exports = {
     registerDevice,
     registerUser,
@@ -104,5 +158,6 @@ module.exports = {
     getDeviceConnections,
     getUserEspStatusListeners,
     notifyEspStatusChange,
+    notifyButtonChange,
     isDeviceOnlineForUser
 };

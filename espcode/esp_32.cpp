@@ -3,19 +3,24 @@
 // ============================================================
 
 #include <WiFi.h>
-#include <ArduinoOTA.h>
+// ArduinoOTA removed - not compatible with "Huge APP (No OTA)" partition scheme
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 #include <WiFiManager.h>
 #include <Preferences.h>
+#include "BluetoothSerial.h"
+
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Enable it in "Tools -> Partition Scheme" / menuconfig for this board.
+#endif
 
 // ------------------------------------------------------------
 // PIN DEFINITIONS (adjust to your board)
 // ------------------------------------------------------------
 #define RELAY_1       12
 #define RELAY_2       14
-#define RELAY_3       27
-#define RELAY_4       26
+// RELAY_3 (27) and RELAY_4 (26) are now controlled by the Arduino
+// over Bluetooth (HC-05/HC-06), NOT directly by the ESP32.
 #define BUILTIN_LED   2
 
 // ------------------------------------------------------------
@@ -26,22 +31,27 @@ const uint16_t WS_PORT = 3000;
 const char* WS_PATH = "/ws";
 
 // ------------------------------------------------------------
-// OTA SETTINGS
-// ------------------------------------------------------------
-const char* OTA_HOSTNAME = "esp32-home";
-const char* OTA_PASSWORD = "123456";   // Change this!
-
-// ------------------------------------------------------------
 // WIFI MANAGER SETTINGS
 // ------------------------------------------------------------
 const char* WM_AP_NAME = "ESP32-Setup";
 const int WM_TIMEOUT = 180;            // seconds
 
 // ------------------------------------------------------------
+// BLUETOOTH SETTINGS (ESP32 = Master, connects to HC-05 on Arduino)
+// ------------------------------------------------------------
+const char* BT_LOCAL_NAME = "ESP32_MASTER";
+const char* HC05_NAME     = "HC-05";     // must match your HC-05's name exactly
+const char* BT_PIN        = "1234";      // must match your HC-05's PIN
+
+unsigned long lastBTReconnectAttempt = 0;
+const unsigned long BT_RECONNECT_INTERVAL = 5000; // ms, non-blocking retry
+
+// ------------------------------------------------------------
 // GLOBAL OBJECTS
 // ------------------------------------------------------------
 WebSocketsClient wsClient;
 WiFiManager wm;
+BluetoothSerial SerialBT;
 
 // for user send data from the fiwi manager portal {custom}
 char USER_ID[50] = "";
@@ -53,10 +63,38 @@ WiFiManagerParameter custom_name(
 );
 
 // ------------------------------------------------------------
-// HELPER: set relay on/off
+// HELPER: set relay on/off (ESP32-local relays only: 1 and 2)
 // ------------------------------------------------------------
 void setRelay(int pin, bool on) {
   digitalWrite(pin, on ? HIGH : LOW);
+}
+
+// ------------------------------------------------------------
+// HELPER: forward a relay command to the Arduino over Bluetooth
+// Sends JSON like: {"relay":3,"status":1}\n
+// ------------------------------------------------------------
+void sendRelayBT(int relayNum, int status) {
+  if (!SerialBT.connected()) {
+    Serial.println("[BT] ⚠️ Not connected to HC-05, cannot send relay command");
+    return;
+  }
+  String json = "{\"relay\":" + String(relayNum) +
+                ",\"status\":" + String(status) + "}";
+  SerialBT.println(json);   // println adds the newline the Arduino can split on
+  Serial.print("[BT] Sent -> ");
+  Serial.println(json);
+}
+
+// ------------------------------------------------------------
+// HELPER: try to (re)connect to the HC-05
+// ------------------------------------------------------------
+void tryConnectBT() {
+  Serial.println("[BT] Connecting to HC-05...");
+  if (SerialBT.connect(HC05_NAME)) {
+    Serial.println("[BT] ✅ Connected to HC-05!");
+  } else {
+    Serial.println("[BT] ❌ Connection failed, will retry");
+  }
 }
 
 // ------------------------------------------------------------
@@ -110,8 +148,8 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
           delay(200);
 
           // 2. Save credentials for next boot
-          wm.setAPStaticIPConfig(IPAddress(0,0,0,0), IPAddress(0,0,0,0), IPAddress(0,0,0,0));
-          wm.setConfigPortalBlocking(false);
+          // (no-op calls removed here: setAPStaticIPConfig / setConfigPortalBlocking(false)
+          //  were unused and pulled in extra WiFiManager code paths, costing flash space)
           // WiFiManager uses "wifi_cred" namespace internally – we must use Preferences directly
           {
             Preferences prefs;
@@ -162,14 +200,22 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
             if (status == 0) {  // turn all OFF
               setRelay(RELAY_1, false);
               setRelay(RELAY_2, false);
-              setRelay(RELAY_3, false);
-              setRelay(RELAY_4, false);
+              // Relay 3 & 4 live on the Arduino - forward over Bluetooth
+              sendRelayBT(3, 0);
+              sendRelayBT(4, 0);
             }
             // ignore "all" status=1 (usually means "on" but let’s not turn on all)
-          } else if (button == "btn1") setRelay(RELAY_1, status);
-          else if (button == "btn2") setRelay(RELAY_2, status);
-          else if (button == "btn3") setRelay(RELAY_3, status);
-          else if (button == "btn4") setRelay(RELAY_4, status);
+          } else if (button == "btn1") {
+            setRelay(RELAY_1, status);
+          } else if (button == "btn2") {
+            setRelay(RELAY_2, status);
+          } else if (button == "btn3") {
+            // Relay 3 is wired to the Arduino - forward via Bluetooth
+            sendRelayBT(3, status);
+          } else if (button == "btn4") {
+            // Relay 4 is wired to the Arduino - forward via Bluetooth
+            sendRelayBT(4, status);
+          }
           return;
         }
 
@@ -181,38 +227,19 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
       Serial.println("[WS] ⚠️ Error");
       break;
 
+    case WStype_PING:
+      // Respond to ping with pong to keep connection alive
+      wsClient.sendTXT("");  // Empty payload pong response
+      Serial.println("[WS] 📡 Ping received, pong sent");
+      break;
+
+    case WStype_PONG:
+      Serial.println("[WS] 📡 Pong received");
+      break;
+
     default:
       break;
   }
-}
-
-// ------------------------------------------------------------
-// SETUP OTA
-// ------------------------------------------------------------
-void setupOTA() {
-  ArduinoOTA.setHostname(OTA_HOSTNAME);
-  ArduinoOTA.setPassword(OTA_PASSWORD);   // required when uploading
-
-  ArduinoOTA.onStart([]() {
-    Serial.println("[OTA] Update started");
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("[OTA] Update complete, restarting...");
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("[OTA] Progress: %u%%\r", (progress * 100) / total);
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("[OTA] Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed");
-  });
-
-  ArduinoOTA.begin();
-  Serial.println("[OTA] Ready");
 }
 
 // ------------------------------------------------------------
@@ -229,8 +256,7 @@ void setup() {
   digitalWrite(BUILTIN_LED, HIGH);  // off (active-low)
   pinMode(RELAY_1, OUTPUT); digitalWrite(RELAY_1, LOW);
   pinMode(RELAY_2, OUTPUT); digitalWrite(RELAY_2, LOW);
-  pinMode(RELAY_3, OUTPUT); digitalWrite(RELAY_3, LOW);
-  pinMode(RELAY_4, OUTPUT); digitalWrite(RELAY_4, LOW);
+  // Relay 3 & 4 pins removed - those relays are wired to the Arduino now
 
   // ---- WiFiManager ----
   wm.addParameter(&custom_name);
@@ -258,8 +284,12 @@ void setup() {
   // Serial.print("[WiFi] USER ID: "); Serial.println(prefs.getString("id",""));
   // prefs.end();
 
-  // ---- OTA ----
-  setupOTA();
+  // ---- Bluetooth (ESP32 as Master, connects out to HC-05) ----
+  SerialBT.setPin(BT_PIN, 4);
+  SerialBT.begin(BT_LOCAL_NAME, true);   // true = Master mode
+  Serial.println("[BT] Started in Master mode, connecting to HC-05...");
+  tryConnectBT();
+  lastBTReconnectAttempt = millis();
 
   // ---- WebSocket ----
   wsClient.onEvent(webSocketEvent);
@@ -271,11 +301,25 @@ void setup() {
 // MAIN LOOP
 // ------------------------------------------------------------
 void loop() {
-  // OTA handler – must be called frequently
-  ArduinoOTA.handle();
-
   // WebSocket handler – triggers our event callback
   wsClient.loop();
+
+  // Keep the HC-05 link alive; retry periodically if dropped
+  if (!SerialBT.connected()) {
+    if (millis() - lastBTReconnectAttempt > BT_RECONNECT_INTERVAL) {
+      lastBTReconnectAttempt = millis();
+      tryConnectBT();
+    }
+  } else if (SerialBT.available()) {
+    // (Optional) read anything the Arduino sends back over Bluetooth,
+    // e.g. acknowledgements or sensor data. Just logs it for now.
+    String btLine = SerialBT.readStringUntil('\n');
+    btLine.trim();
+    if (btLine.length() > 0) {
+      Serial.print("[BT] Received <- ");
+      Serial.println(btLine);
+    }
+  }
 
   // LED indicator
   if (WiFi.status() == WL_CONNECTED) {
@@ -298,6 +342,7 @@ void loop() {
       Serial.print("WiFi : "); Serial.println(WiFi.status() == WL_CONNECTED ? "Connected" : "Offline");
       Serial.print("WS   : "); Serial.println(wsClient.isConnected() ? "Connected" : "Disconnected");
       Serial.print("IP   : "); Serial.println(WiFi.localIP());
+      Serial.print("BT   : "); Serial.println(SerialBT.connected() ? "Connected to HC-05" : "Disconnected");
     } else if (cmd == "RESET_WIFI") {
       Serial.println("[WiFi] Clearing saved credentials...");
       wm.resetSettings();
@@ -307,8 +352,12 @@ void loop() {
       Serial.println("[System] Restarting...");
       delay(500);
       ESP.restart();
+    } else if (cmd == "BT_TEST_ON3") {
+      sendRelayBT(3, 1);
+    } else if (cmd == "BT_TEST_OFF3") {
+      sendRelayBT(3, 0);
     } else {
-      Serial.println("Available commands: STATUS | RESET_WIFI | RESTART");
+      Serial.println("Available commands: STATUS | RESET_WIFI | RESTART | BT_TEST_ON3 | BT_TEST_OFF3");
     }
   }
 

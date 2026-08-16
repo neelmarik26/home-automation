@@ -10,8 +10,10 @@ const jwt = require('jsonwebtoken');
 
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const timerRoutes = require('./routes/timerRoutes');
 const { setupWebSocketServer } = require('./websocket/server');
 const { registerUser, removeUser, registerEspStatusListener, removeEspStatusListener, isDeviceOnlineForUser } = require('./websocket/connectionManager');
+const { loadActiveTimers } = require('./controllers/timerController');
 
 const app = express();
 const server = http.createServer();
@@ -24,7 +26,37 @@ setupWebSocketServer(server);
 // Using noServer mode to handle upgrades manually
 const wssFrontend = new WebSocket.Server({ noServer: true });
 
+// Heartbeat for frontend connections
+const FRONTEND_HEARTBEAT_INTERVAL = 30000;
+setInterval(() => {
+    wssFrontend.clients.forEach((ws) => {
+        if (ws.isAlive === false) {
+            return ws.terminate();
+        }
+        ws.isAlive = false;
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+        }
+    });
+}, FRONTEND_HEARTBEAT_INTERVAL);
+
 wssFrontend.on('connection', (ws, req) => {
+    ws.isAlive = true;
+    
+    ws.on('pong', () => {
+        ws.isAlive = true;
+    });
+    
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message.toString());
+            if (data.type === 'pong') {
+                ws.isAlive = true;
+            }
+        } catch (e) {
+            // Ignore parse errors
+        }
+    });
     // Extract token from query string - use url.parse for compatibility
     const urlObj = new URL(req.url, `http://${req.headers.host}`);
     const token = urlObj.searchParams.get('token');
@@ -75,6 +107,7 @@ server.on('upgrade', (request, socket, head) => {
             wssFrontend.emit('connection', ws, request);
         });
     }
+    // Note: /ws is handled in websocket/server.js
 });
 
 app.use(cors());
@@ -88,6 +121,7 @@ server.on('request', app);
 
 app.use('/user', userRoutes);
 app.use('/admin', adminRoutes);
+app.use('/timer', timerRoutes);
 
 app.get('/', (req, res) => {
     res.render('login.ejs')
@@ -102,8 +136,9 @@ app.get("/supage", (req, res) => {
 const port = process.env.port || process.env.PORT || 3000;
 mongoose
     .connect(process.env.mongodb_url)
-    .then(() => {
+    .then(async () => {
         console.log('MongoDB connected successfully');
+        await loadActiveTimers();
         server.listen(port, () => {
             console.log(`Server listening on port ${port}`);
         });
