@@ -1,0 +1,10 @@
+1786881329: mosquitto version 2.1.2 starting
+1786881329: Config loaded from /mosquitto/config/mosquitto.conf.
+1786881329: Bridge support available.
+1786881329: Persistence support available.
+1786881329: TLS support available.
+1786881329: TLS-PSK support available.
+1786881329: Websockets support available.
+1786881329: Opening ipv4 listen socket on port 1883.
+1786881329: Opening ipv6 listen socket on port 1883.
+1786881329: mosquitto version 2.1.2 running
