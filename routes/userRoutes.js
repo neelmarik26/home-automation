@@ -9,6 +9,7 @@ const router = express.Router();
 router.post('/register', userController.registerUser);
 router.post('/login', userController.loginUser);
 router.get('/button-status', decodeJwtToken, userController.getButtonStatusByUser);
+router.get('/device-status', decodeJwtToken, userController.getDeviceStatus);
 router.put('/button-status/:buttonId', decodeJwtToken, userController.updateButtonStatusByUser);
 router.get('/device-names', decodeJwtToken, userController.getDeviceNames);
 router.put('/device-names', decodeJwtToken, userController.updateDeviceName);

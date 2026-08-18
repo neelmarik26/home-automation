@@ -1,10 +1,10 @@
 // ============================================================
-// ESP8266 HOME AUTOMATION - WebSocket Client (simplified)
+// ESP8266 HOME AUTOMATION - MQTT Client
 // ============================================================
 
 #include <ESP8266WiFi.h>
 #include <ArduinoOTA.h>
-#include <WebSocketsClient.h>
+#include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <WiFiManager.h>
 #include <EEPROM.h>
@@ -20,11 +20,12 @@
 #define BUILTIN_LED   2   // D4 (onboard LED, active-low on most boards)
 
 // ------------------------------------------------------------
-// WEBSOCKET SERVER
+// MQTT SERVER
 // ------------------------------------------------------------
-const char* WS_HOST = "80.225.216.53";
-const uint16_t WS_PORT = 3000;
-const char* WS_PATH = "/ws";
+const char* MQTT_SERVER = "80.225.216.53";
+const uint16_t MQTT_PORT = 1883;
+const char* MQTT_USER = "";        // Set if authentication required
+const char* MQTT_PASSWORD = "";    // Set if authentication required
 
 // ------------------------------------------------------------
 // OTA SETTINGS
@@ -48,7 +49,8 @@ const int WM_TIMEOUT = 180;            // seconds
 // ------------------------------------------------------------
 // GLOBAL OBJECTS
 // ------------------------------------------------------------
-WebSocketsClient wsClient;
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
 WiFiManager wm;
 
 // for user to send data from the wifi manager portal (custom)
@@ -100,153 +102,74 @@ void setRelay(int pin, bool on) {
 }
 
 // ------------------------------------------------------------
-// WEBSOCKET EVENT HANDLER (called automatically by library)
+// MQTT MESSAGE CALLBACK
 // ------------------------------------------------------------
-void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
-  switch (type) {
-    case WStype_CONNECTED: {
-      Serial.println("[WS] Connected to server");
-
-      String userId = loadUserId();
-      Serial.println("userId==>");
-      Serial.println(userId);
-
-      String json = "{\"userId\":\"" + userId +
-              "\",\"deviceId\":\"" + userId + "-esp" +
-              "\",\"type\":\"register\"}";
-      wsClient.sendTXT(json);
-      break;
-    }
-    case WStype_DISCONNECTED:
-      Serial.println("[WS] Disconnected");
-      break;
-
-    case WStype_TEXT:
-      {
-        // Parse JSON safely
-        StaticJsonDocument<512> doc;
-        DeserializationError err = deserializeJson(doc, payload, length);
-        if (err) {
-          Serial.print("[WS] JSON error: ");
-          Serial.println(err.c_str());
-          return;
-        }
-
-        // ---- NEW WI-FI CREDENTIALS ----
-        if (doc.containsKey("ssid") && doc.containsKey("password")) {
-          String newSSID = doc["ssid"].as<String>();
-          String newPass = doc["password"].as<String>();
-
-          Serial.println("[WiFi] Received new credentials:");
-          Serial.print("       SSID: "); Serial.println(newSSID);
-
-          // 1. Disconnect WebSocket BEFORE switching networks
-          wsClient.disconnect();
-          delay(200);
-
-          // 2. Connect to new network
-          // (WiFiManager on ESP8266 auto-persists sta credentials via
-          //  WiFi.begin, so no manual Preferences-style save needed here)
-          Serial.print("[WiFi] Connecting to new network...");
-          WiFi.disconnect();
-          WiFi.begin(newSSID.c_str(), newPass.c_str());
-
-          int attempts = 0;
-          while (WiFi.status() != WL_CONNECTED && attempts < 40) {
-            delay(500);
-            Serial.print(".");
-            attempts++;
-          }
-
-          if (WiFi.status() == WL_CONNECTED) {
-            Serial.println("\n[WiFi] Connected!");
-            Serial.print("[WiFi] IP: "); Serial.println(WiFi.localIP());
-
-            // 3. Reconnect WebSocket on the new network
-            Serial.println("[WS] Reconnecting WebSocket...");
-            wsClient.begin(WS_HOST, WS_PORT, WS_PATH);
-          } else {
-            Serial.println("\n[WiFi] Failed. Restarting device...");
-            delay(500);
-            ESP.restart();
-          }
-          return;  // done handling this message
-        }
-
-        // ---- RELAY / BUTTON CONTROL ----
-        if (doc.containsKey("button") && doc.containsKey("status")) {
-          String button = doc["button"].as<String>();
-          int status = doc["status"].as<int>();
-
-          Serial.print("[CTRL] Button: "); Serial.print(button);
-          Serial.print(" -> "); Serial.println(status);
-
-          if (button == "all") {
-            if (status == 0) {  // turn all OFF
-              setRelay(RELAY_1, false);
-              setRelay(RELAY_2, false);
-              setRelay(RELAY_3, false);
-              setRelay(RELAY_4, false);
-            }
-            // ignore "all" status=1 (usually means "on" but let's not turn on all)
-          } else if (button == "btn1") setRelay(RELAY_1, status);
-          else if (button == "btn2") setRelay(RELAY_2, status);
-          else if (button == "btn3") setRelay(RELAY_3, status);
-          else if (button == "btn4") setRelay(RELAY_4, status);
-          return;
-        }
-
-        // Handle ping from server (application-level heartbeat)
-        if (doc.containsKey("type") && doc["type"] == "ping") {
-          wsClient.sendTXT("{\"type\":\"pong\"}");
-          return;
-        }
-
-        // Handle register_ack from server
-        if (doc.containsKey("type") && doc["type"] == "register_ack") {
-          Serial.println("[WS] Registration acknowledged");
-          return;
-        }
-
-        // Handle button_update from server (initial state sync)
-        if (doc.containsKey("type") && doc["type"] == "button_update") {
-          String button = doc["button"].as<String>();
-          int status = doc["status"].as<int>();
-
-          Serial.print("[SYNC] Button: "); Serial.print(button);
-          Serial.print(" -> "); Serial.println(status);
-
-          if (button == "btn1") setRelay(RELAY_1, status);
-          else if (button == "btn2") setRelay(RELAY_2, status);
-          else if (button == "btn3") setRelay(RELAY_3, status);
-          else if (button == "btn4") setRelay(RELAY_4, status);
-          return;
-        }
-
-        Serial.println("[WS] Unknown JSON message");
-      }
-      break;
-
-    case WStype_ERROR:
-      Serial.println("[WS] Error");
-      break;
-
-    default:
-      break;
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  // Convert payload to string
+  char message[length + 1];
+  for (int i = 0; i < length; i++) {
+    message[i] = (char)payload[i];
   }
+  message[length] = '\0';
+
+  Serial.print("[MQTT] Message received on topic: ");
+  Serial.println(topic);
+  Serial.print("[MQTT] Payload: ");
+  Serial.println(message);
+
+  // Parse JSON safely
+  StaticJsonDocument<512> doc;
+  DeserializationError err = deserializeJson(doc, message);
+  if (err) {
+    Serial.print("[MQTT] JSON error: ");
+    Serial.println(err.c_str());
+    return;
+  }
+
+  // ---- RELAY / BUTTON CONTROL ----
+  if (doc.containsKey("button") && doc.containsKey("status")) {
+    String button = doc["button"].as<String>();
+    int status = doc["status"].as<int>();
+
+    Serial.print("[CTRL] Button: "); Serial.print(button);
+    Serial.print(" -> "); Serial.println(status);
+
+    if (button == "all") {
+      if (status == 0) {  // turn all OFF
+        setRelay(RELAY_1, false);
+        setRelay(RELAY_2, false);
+        setRelay(RELAY_3, false);
+        setRelay(RELAY_4, false);
+      }
+      // ignore "all" status=1 (usually means "on" but let's not turn on all)
+    } else if (button == "btn1") setRelay(RELAY_1, status);
+    else if (button == "btn2") setRelay(RELAY_2, status);
+    else if (button == "btn3") setRelay(RELAY_3, status);
+    else if (button == "btn4") setRelay(RELAY_4, status);
+    return;
+  }
+
+  Serial.println("[MQTT] Unknown JSON message");
 }
 
-// Add reconnection logic
-unsigned long lastReconnectAttempt = 0;
-const unsigned long RECONNECT_INTERVAL = 5000; // 5 seconds
+// Add MQTT reconnection logic
+unsigned long lastMqttReconnectAttempt = 0;
+const unsigned long MQTT_RECONNECT_INTERVAL = 5000; // 5 seconds
 
-void checkWebSocketConnection() {
-  if (!wsClient.isConnected() && WiFi.status() == WL_CONNECTED) {
+void checkMqttConnection() {
+  if (!mqttClient.connected() && WiFi.status() == WL_CONNECTED) {
     unsigned long now = millis();
-    if (now - lastReconnectAttempt > RECONNECT_INTERVAL) {
-      Serial.println("[WS] Attempting to reconnect...");
-      wsClient.begin(WS_HOST, WS_PORT, WS_PATH);
-      lastReconnectAttempt = now;
+    if (now - lastMqttReconnectAttempt > MQTT_RECONNECT_INTERVAL) {
+      Serial.println("[MQTT] Attempting to reconnect...");
+      String userId = loadUserId();
+      String clientId = userId + "-esp8266";
+      
+      if (mqttClient.connect(clientId.c_str(), MQTT_USER, MQTT_PASSWORD)) {
+        Serial.println("[MQTT] Connected to broker");
+        // Subscribe to control topics
+        mqttClient.subscribe("home/control/+");
+      }
+      lastMqttReconnectAttempt = now;
     }
   }
 }
@@ -319,10 +242,10 @@ void setup() {
   // ---- OTA ----
   setupOTA();
 
-  // ---- WebSocket ----
-  wsClient.onEvent(webSocketEvent);
-  wsClient.begin(WS_HOST, WS_PORT, WS_PATH);
-  Serial.println("[WS] Initialising WebSocket...");
+  // ---- MQTT ----
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
+  mqttClient.setCallback(mqttCallback);
+  Serial.println("[MQTT] Initialising MQTT...");
 }
 
 // ------------------------------------------------------------
@@ -332,18 +255,19 @@ void loop() {
   // OTA handler - must be called frequently
   ArduinoOTA.handle();
 
-  // WebSocket handler - triggers our event callback
-  wsClient.loop();
-
-  // Check and attempt WebSocket reconnection
-  checkWebSocketConnection();
+  // MQTT handler
+  if (mqttClient.connected()) {
+    mqttClient.loop();
+  } else {
+    checkMqttConnection();
+  }
 
   // LED indicator
   if (WiFi.status() == WL_CONNECTED) {
-    if (wsClient.isConnected()) {
+    if (mqttClient.connected()) {
       digitalWrite(BUILTIN_LED, HIGH);   // solid ON = all good
     } else {
-      // blink slowly while Wi-Fi ok but WS not connected
+      // blink slowly while Wi-Fi ok but MQTT not connected
       digitalWrite(BUILTIN_LED, (millis() / 500) % 2 == 0 ? LOW : HIGH);
     }
   } else {
@@ -357,7 +281,7 @@ void loop() {
     if (cmd == "STATUS") {
       Serial.println("--- DEVICE STATUS ---");
       Serial.print("WiFi : "); Serial.println(WiFi.status() == WL_CONNECTED ? "Connected" : "Offline");
-      Serial.print("WS   : "); Serial.println(wsClient.isConnected() ? "Connected" : "Disconnected");
+      Serial.print("MQTT : "); Serial.println(mqttClient.connected() ? "Connected" : "Disconnected");
       Serial.print("IP   : "); Serial.println(WiFi.localIP());
     } else if (cmd == "RESET_WIFI") {
       Serial.println("[WiFi] Clearing saved credentials...");

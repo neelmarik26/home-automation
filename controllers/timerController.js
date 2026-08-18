@@ -1,8 +1,7 @@
 const schedule = require('node-schedule');
-const WebSocket = require('ws');
 const Timer = require('../models/Timer');
 const ButtonState = require('../models/LAST5BUTTON');
-const { getEspWebSocket, notifyButtonChange } = require('../websocket/connectionManager');
+const { publishToUser } = require('../mqtt/mqttService');
 
 // In-memory map: timerId -> scheduledJob
 const scheduledJobs = new Map();
@@ -36,18 +35,7 @@ async function executeTimer(timerDoc) {
     // Mark timer as completed
     await Timer.updateOne({ _id: timerDoc._id }, { status: 'COMPLETED' });
 
-    // Notify ESP via WebSocket
-    const espWs = getEspWebSocket(timerDoc.userId);
-    if (espWs && espWs.readyState === WebSocket.OPEN) {
-      espWs.send(JSON.stringify({
-        type: 'button_update',
-        button: timerDoc.buttonName,
-        status: timerDoc.action === 'ON' ? 1 : 0,
-      }));
-    }
-
-    // Broadcast button change to all frontend clients
-    notifyButtonChange(timerDoc.userId, timerDoc.buttonName, timerDoc.action === 'ON' ? 1 : 0);
+    publishToUser(timerDoc.userId, { type: 'button_update', button: timerDoc.buttonName, status: timerDoc.action === 'ON' ? 1 : 0 });
   } catch (error) {
     console.error('Timer execution error:', error);
   }
