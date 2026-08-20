@@ -1,7 +1,6 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const WebSocket = require('ws');
 const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -14,7 +13,8 @@ const transporter = nodemailer.createTransport({
 
 const User = require('../models/userdataschem');
 const ButtonState = require('../models/LAST5BUTTON');
-const { getEspWebSocket, notifyButtonChange } = require('../websocket/connectionManager');
+const DeviceConnection = require('../models/DeviceConnection');
+const { publishToUser } = require('../mqtt/mqttService');
 
 function isStrongPassword(password) {
   return (
@@ -190,7 +190,7 @@ exports.sendForgotPasswordOtp = async (req, res) => {
 exports.verifyOtp = async (req, res) => {
   try {
     const { usermail, otp } = req.body;
-    
+
     if (!usermail || !otp) {
       return res.status(400).json({ message: 'email and otp are required' });
     }
@@ -297,18 +297,7 @@ exports.updateButtonStatusByUser = async (req, res) => {
       return res.status(404).json({ message: 'button not found' });
     }
 
-    // Send button update to ESP via WebSocket
-    const espWs = getEspWebSocket(userId);
-    if (espWs && espWs.readyState === WebSocket.OPEN) {
-      espWs.send(JSON.stringify({
-        type: 'button_update',
-        button: updatedButton.buttonName,
-        status: parseInt(updatedButton.state)
-      }));
-    }
-
-    // Broadcast button change to all frontend clients (other tabs/users on same account)
-    notifyButtonChange(userId, updatedButton.buttonName, parseInt(updatedButton.state));
+    publishToUser(userId, { type: 'button_update', button: updatedButton.buttonName, status: parseInt(updatedButton.state) });
 
     return res.json({
       message: 'button status updated successfully',
@@ -317,6 +306,12 @@ exports.updateButtonStatusByUser = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: 'failed to update button status', error: error.message });
   }
+};
+
+exports.getDeviceStatus = async (req, res) => {
+  const userId = req.user?.id;
+  const devices = await DeviceConnection.find({ userId }).select('deviceId status lastHeartbeat').lean();
+  res.json({ status: devices.some((device) => device.status === 'ONLINE') ? 'ONLINE' : 'OFFLINE', devices });
 };
 
 exports.getDeviceNames = async (req, res) => {

@@ -163,7 +163,6 @@ function applyDeviceNames(deviceNames, deviceRooms) {
 /* ─────────────────────────────────────────────
    ESP Status Tracking
 ───────────────────────────────────────────────*/
-let userWs = null;
 let espStatus = 'OFFLINE';
 
 function updateEspStatusIndicator(status) {
@@ -181,62 +180,13 @@ function updateEspStatusIndicator(status) {
     }
 }
 
-function connectUserWs() {
-    const token = getToken();
-    if (!token || typeof WebSocket === 'undefined') return;
-
-    const socketProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    userWs = new WebSocket(`${socketProtocol}//${window.location.host}/ws-front?token=${token}`);
-
-    userWs.addEventListener('open', function () {
-        console.log('Frontend WebSocket connected');
-    });
-
-    userWs.addEventListener('message', function (event) {
-        try {
-            const payload = JSON.parse(event.data);
-            if (payload.type === 'ping') {
-                userWs.send(JSON.stringify({ type: 'pong' }));
-                return;
-            }
-            if (payload.type === 'esp_status') {
-                updateEspStatusIndicator(payload.status);
-            }
-            if (payload.type === 'button_update') {
-                // Sync button state from other clients/users
-                const btnName = payload.buttonName; // e.g. 'btn1'
-                const state = payload.state;      // 0 or 1
-                const cardNum = BTN_TO_CARD[btnName];
-                if (cardNum) {
-                    const card = document.getElementById('card' + cardNum);
-                    const button = document.getElementById('buttonid' + cardNum);
-                    if (card && button) {
-                        setCardState(card, button, state === 1);
-                    }
-                }
-            }
-            if (payload.type === 'connected') {
-                if (payload.espStatus) {
-                    updateEspStatusIndicator(payload.espStatus);
-                }
-            }
-        } catch (error) {
-            console.error('WebSocket message parse failed:', error);
-        }
-    });
-
-    userWs.addEventListener('close', function (event) {
-        console.log('Frontend WebSocket disconnected, code:', event.code);
-        userWs = null;
-        if (event.code !== 1000 && event.code !== 1001) {
-            updateEspStatusIndicator('OFFLINE');
-        }
-        setTimeout(connectUserWs, 3000);
-    });
-
-    userWs.addEventListener('error', function (error) {
-        console.error('WebSocket error:', error);
-    });
+async function pollDeviceStatus() {
+    try {
+        const response = await fetch('/user/device-status', { headers: authHeaders() });
+        if (response.ok) updateEspStatusIndicator((await response.json()).status);
+    } catch (error) {
+        updateEspStatusIndicator('OFFLINE');
+    }
 }
 
 /* ─────────────────────────────────────────────
@@ -312,7 +262,8 @@ window.addEventListener('DOMContentLoaded', async function () {
         if (adminBtn) adminBtn.style.display = '';
     }
 
-    connectUserWs();
+    pollDeviceStatus();
+    setInterval(pollDeviceStatus, 10000);
     await fetchAndApplyDeviceNames();
 
     try {
