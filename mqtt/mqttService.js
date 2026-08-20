@@ -24,6 +24,8 @@ async function handleMessage(topic, raw) {
   const userId = match[1];
   let data;
   try { data = JSON.parse(raw.toString()); } catch { return; }
+  console.log("topic",topic)
+  console.log("data.deviceId ",data)
   if (!data.deviceId || !(await User.exists({ _id: userId }))) return;
 
   if (data.type === 'register' || data.type === 'status') {
