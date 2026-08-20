@@ -10,6 +10,8 @@
 #define BUILTIN_LED 2
 const char *MQTT_HOST = "80.225.216.53";
 const uint16_t MQTT_PORT = 1883;
+const char *MQTT_USER = "anupam_neel";
+const char *MQTT_PASSWORD = "AN@2023";
 WiFiClient net;
 PubSubClient mqtt(net);
 WiFiManager wm;
@@ -51,7 +53,7 @@ void reconnect()
 {
     while (!mqtt.connected() && WiFi.status() == WL_CONNECTED)
     {
-        if (mqtt.connect((userId + "-esp32").c_str()))
+        if (mqtt.connect((userId + "-esp32").c_str(), MQTT_USER, MQTT_PASSWORD))
         {
             mqtt.subscribe(topic.c_str());
             publish("register");

@@ -65,7 +65,9 @@ async function handleMessage(topic, raw) {
   }
 }
 
-client.on('connect', () => client.subscribe('home/+'));
+client.on('connect', () => {
+  console.log("mqtt connected...")
+  client.subscribe('home/+')});
 client.on('message', (topic, message) => handleMessage(topic, message).catch((err) => console.error('[MQTT] message error:', err.message)));
 client.on('error', (err) => console.error('[MQTT] connection error:', err.message));
 

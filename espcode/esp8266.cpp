@@ -24,8 +24,8 @@
 // ------------------------------------------------------------
 const char* MQTT_SERVER = "80.225.216.53";
 const uint16_t MQTT_PORT = 1883;
-const char* MQTT_USER = "";        // Set if authentication required
-const char* MQTT_PASSWORD = "";    // Set if authentication required
+const char* MQTT_USER = "anupam_neel";
+const char* MQTT_PASSWORD = "AN@2023";
 
 // ------------------------------------------------------------
 // OTA SETTINGS
@@ -127,9 +127,18 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 
   // ---- RELAY / BUTTON CONTROL ----
-  if (doc.containsKey("button") && doc.containsKey("status")) {
-    String button = doc["button"].as<String>();
-    int status = doc["status"].as<int>();
+  // Handle both {type:"button_update", button, status} and legacy {button, status}
+  String button;
+  int status = -1;
+
+  if (doc.containsKey("type") && doc["type"] == "button_update") {
+    button = doc["button"].as<String>();
+    status = doc["status"].as<int>();
+  } else if (doc.containsKey("button") && doc.containsKey("status")) {
+    // Legacy format (no type wrapper)
+    button = doc["button"].as<String>();
+    status = doc["status"].as<int>();
+  }
 
     Serial.print("[CTRL] Button: "); Serial.print(button);
     Serial.print(" -> "); Serial.println(status);
@@ -154,7 +163,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 // Add MQTT reconnection logic
 unsigned long lastMqttReconnectAttempt = 0;
+unsigned long lastHeartbeat = 0;
 const unsigned long MQTT_RECONNECT_INTERVAL = 5000; // 5 seconds
+const unsigned long HEARTBEAT_INTERVAL = 30000; // 30 seconds
 
 void checkMqttConnection() {
   if (!mqttClient.connected() && WiFi.status() == WL_CONNECTED) {
@@ -166,8 +177,13 @@ void checkMqttConnection() {
       
       if (mqttClient.connect(clientId.c_str(), MQTT_USER, MQTT_PASSWORD)) {
         Serial.println("[MQTT] Connected to broker");
-        // Subscribe to control topics
-        mqttClient.subscribe("home/control/+");
+        // Subscribe to user's topic for button updates
+        String userTopic = "home/" + userId;
+        mqttClient.subscribe(userTopic.c_str());
+        // Publish register so server sends current button states
+        String registerMsg = "{\"type\":\"register\",\"deviceId\":\"" + userId + "-esp8266\"}";
+        mqttClient.publish(userTopic.c_str(), registerMsg.c_str(), true);
+        Serial.println("[MQTT] Subscribed and registered");
       }
       lastMqttReconnectAttempt = now;
     }
@@ -258,6 +274,15 @@ void loop() {
   // MQTT handler
   if (mqttClient.connected()) {
     mqttClient.loop();
+
+    // Send heartbeat every 30 seconds
+    if (millis() - lastHeartbeat > HEARTBEAT_INTERVAL) {
+      String userId = loadUserId();
+      String userTopic = "home/" + userId;
+      String heartbeatMsg = "{\"type\":\"heartbeat\",\"deviceId\":\"" + userId + "-esp8266\"}";
+      mqttClient.publish(userTopic.c_str(), heartbeatMsg.c_str(), true);
+      lastHeartbeat = millis();
+    }
   } else {
     checkMqttConnection();
   }

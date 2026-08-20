@@ -13,3 +13,6 @@ MQTT configuration:
 Each ESP and the server use the shared topic `home/<userId>`. ESP messages include
 `deviceId`, so any number of ESP32/ESP8266 devices can be associated with one user.
 https://chatgpt.com/share/6a81a913-c534-83e8-9819-5fcdf16d1924
+
+
+mosquitto_sub -h 80.225.216.53 -p 1883 -u anupam_neel -P "AN@2023" -t test/topic -v
