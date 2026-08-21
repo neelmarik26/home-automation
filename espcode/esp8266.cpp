@@ -174,15 +174,20 @@ void checkMqttConnection() {
       Serial.println("[MQTT] Attempting to reconnect...");
       String userId = loadUserId();
       String clientId = userId + "-esp8266";
+      String userTopic = "home/" + userId;
+      String willMessage = "{\"type\":\"status\",\"status\":\"OFFLINE\",\"deviceId\":\"" + clientId + "\"}";
       
-      if (mqttClient.connect(clientId.c_str(), MQTT_USER, MQTT_PASSWORD)) {
+      if (mqttClient.connect(clientId.c_str(), MQTT_USER, MQTT_PASSWORD,
+                             userTopic.c_str(), 1, true, willMessage.c_str())) {
         Serial.println("[MQTT] Connected to broker");
         // Subscribe to user's topic for button updates
-        String userTopic = "home/" + userId;
         mqttClient.subscribe(userTopic.c_str());
         // Publish register so server sends current button states
         String registerMsg = "{\"type\":\"register\",\"deviceId\":\"" + userId + "-esp8266\"}";
-        mqttClient.publish(userTopic.c_str(), registerMsg.c_str(), true);
+        mqttClient.publish(userTopic.c_str(), registerMsg.c_str(), false);
+        // Replace the retained OFFLINE LWT after reconnecting.
+        String onlineMsg = "{\"type\":\"status\",\"status\":\"ONLINE\",\"deviceId\":\"" + clientId + "\"}";
+        mqttClient.publish(userTopic.c_str(), onlineMsg.c_str(), true);
         Serial.println("[MQTT] Subscribed and registered");
       }
       lastMqttReconnectAttempt = now;
@@ -280,7 +285,7 @@ void loop() {
       String userId = loadUserId();
       String userTopic = "home/" + userId;
       String heartbeatMsg = "{\"type\":\"heartbeat\",\"deviceId\":\"" + userId + "-esp8266\"}";
-      mqttClient.publish(userTopic.c_str(), heartbeatMsg.c_str(), true);
+      mqttClient.publish(userTopic.c_str(), heartbeatMsg.c_str(), false);
       lastHeartbeat = millis();
     }
   } else {

@@ -21,6 +21,19 @@ char USER_ID[50] = "";
 WiFiManagerParameter custom_name("name", "User ID", USER_ID, 50);
 String userId, topic;
 unsigned long lastHeartbeat = 0;
+
+// The broker publishes this retained message if the ESP loses its MQTT
+// connection unexpectedly (power loss, Wi-Fi loss, crash, etc.).
+String offlineWillMessage()
+{
+    StaticJsonDocument<128> d;
+    d["type"] = "status";
+    d["status"] = "OFFLINE";
+    d["deviceId"] = userId + "-esp32";
+    String message;
+    serializeJson(d, message);
+    return message;
+}
 void relay(const String &b, int s)
 {
     if (b == "btn1")
@@ -40,10 +53,20 @@ void callback(char *, byte *p, unsigned int n)
     if (d["type"] == "button_update")
         relay(d["button"].as<String>(), d["status"] | 0);
 }
-void publish(const char *t)
+void publish(const char *t, bool retained = false)
 {
     StaticJsonDocument<128> d;
     d["type"] = t;
+    d["deviceId"] = userId + "-esp32";
+    char o[128];
+    serializeJson(d, o);
+    mqtt.publish(topic.c_str(), o, retained);
+}
+void publishOnlineStatus()
+{
+    StaticJsonDocument<128> d;
+    d["type"] = "status";
+    d["status"] = "ONLINE";
     d["deviceId"] = userId + "-esp32";
     char o[128];
     serializeJson(d, o);
@@ -53,10 +76,14 @@ void reconnect()
 {
     while (!mqtt.connected() && WiFi.status() == WL_CONNECTED)
     {
-        if (mqtt.connect((userId + "-esp32").c_str(), MQTT_USER, MQTT_PASSWORD))
+        String willMessage = offlineWillMessage();
+        if (mqtt.connect((userId + "-esp32").c_str(), MQTT_USER, MQTT_PASSWORD,
+                         topic.c_str(), 1, true, willMessage.c_str()))
         {
             mqtt.subscribe(topic.c_str());
             publish("register");
+            // This replaces the retained OFFLINE LWT after a successful reconnect.
+            publishOnlineStatus();
         }
         else
             delay(5000);
